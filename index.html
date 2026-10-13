@@ -1,48 +1,673 @@
-function setBreakStatus(type) {
-    let state = getUserState();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Pulse - Attendance & Time Tracker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen pb-12">
 
-    // Block taking breaks if not currently working
-    if (!state.isWorking && type !== 'Working') {
-        alert("Please start work first before taking a break!");
-        return;
-    }
+    <!-- Top Navigation & World Clocks -->
+    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-40 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 p-2 rounded-lg text-white"><i class="fa-solid fa-clock-rotate-left text-xl"></i></div>
+                <div>
+                    <h1 class="font-bold text-lg text-white leading-tight">Team Pulse</h1>
+                    <p class="text-xs text-slate-400">Multi-Region Attendance Tracker</p>
+                </div>
+            </div>
 
-    // Block double-tapping the exact same break or switching breaks without clicking "Back to Seat"
-    if (state.status === type && type !== 'Working') {
-        alert(`You are already on a ${type}!`);
-        return;
-    }
+            <!-- Connection Status Badge -->
+            <div id="status-badge" class="flex items-center gap-2 bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-full text-xs font-semibold text-emerald-400">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Google Sheet: Sync Active</span>
+            </div>
 
-    if (state.status.includes('Break') && type !== 'Working') {
-        alert("You are currently in a break! Click 'Back to Seat' to finish your break first.");
-        return;
-    }
+            <!-- World Clocks Bar -->
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+                <div class="bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-700">
+                    <span class="text-slate-400">UK:</span>
+                    <span id="clock-uk" class="font-mono font-bold text-emerald-400 ml-1">00:00:00</span>
+                </div>
+                <div class="bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-700">
+                    <span class="text-slate-400">Europe:</span>
+                    <span id="clock-eu" class="font-mono font-bold text-sky-400 ml-1">00:00:00</span>
+                </div>
+                <div class="bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-700">
+                    <span class="text-slate-400">BD:</span>
+                    <span id="clock-bd" class="font-mono font-bold text-amber-400 ml-1">00:00:00</span>
+                </div>
+                <div class="bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-700">
+                    <span class="text-slate-400">Cambodia:</span>
+                    <span id="clock-kh" class="font-mono font-bold text-indigo-400 ml-1">00:00:00</span>
+                </div>
+            </div>
 
-    if (type === 'Working') {
-        // Resume Work (Back to Seat)
-        if (state.lastBreakStartTimestamp) {
-            let breakElapsed = Math.floor((Date.now() - state.lastBreakStartTimestamp) / 1000);
-            state.totalBreakSec = (state.totalBreakSec || 0) + breakElapsed;
-            state.lastBreakStartTimestamp = null;
+            <!-- Auth Controls -->
+            <div id="user-header-status" class="flex items-center gap-3"></div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 pt-6">
+
+        <!-- LOGIN VIEW -->
+        <div id="view-login" class="max-w-md mx-auto my-12 bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl">
+            <div class="text-center mb-6">
+                <i class="fa-solid fa-user-lock text-4xl text-indigo-400 mb-2"></i>
+                <h2 class="text-2xl font-bold text-white">Sign In to Workspace</h2>
+                <p class="text-sm text-slate-400">Enter employee or admin credentials</p>
+            </div>
+            
+            <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Username</label>
+                    <input type="text" id="login-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500" placeholder="e.g. Rashik or admin">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Password</label>
+                    <input type="password" id="login-password" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-lg transition shadow-lg shadow-indigo-600/30">
+                    Log In
+                </button>
+            </form>
+
+            <div class="mt-6 pt-4 border-t border-slate-700/60 text-xs text-center text-slate-400">
+                <p>Default Admin: <span class="text-indigo-400 font-mono">Rashik</span> / <span class="text-indigo-400 font-mono">215893</span></p>
+            </div>
+        </div>
+
+        <!-- DASHBOARD VIEW (EMPLOYEE) -->
+        <div id="view-dashboard" class="hidden space-y-6">
+            
+            <!-- Employee Header & Timers -->
+            <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl flex flex-col lg:flex-row items-center justify-between gap-6">
+                <div>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-indigo-400">Employee Portal</span>
+                    <h2 id="dash-user-name" class="text-2xl font-bold text-white">Welcome!</h2>
+                    <p class="text-slate-400 text-sm">Status: <span id="dash-status-badge" class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-700 text-slate-300">Off Work</span></p>
+                </div>
+
+                <!-- Timer Displays -->
+                <div class="flex flex-wrap items-center justify-center gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-700">
+                    <div class="text-center px-2">
+                        <span class="text-xs text-slate-400 block mb-1">Shift Worked</span>
+                        <span id="timer-work" class="text-2xl font-mono font-bold text-emerald-400">00:00:00</span>
+                    </div>
+                    <div class="h-8 w-px bg-slate-700 hidden sm:block"></div>
+                    <div class="text-center px-2">
+                        <span class="text-xs text-slate-400 block mb-1">Total Break</span>
+                        <span id="timer-break-total" class="text-2xl font-mono font-bold text-rose-400">00:00:00</span>
+                    </div>
+                    <div class="h-8 w-px bg-slate-700 hidden sm:block"></div>
+                    <div class="text-center px-2">
+                        <span class="text-xs text-slate-400 block mb-1">Break Countdown</span>
+                        <span id="timer-break-countdown" class="text-2xl font-mono font-bold text-amber-400">00:00:00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ATTENDANCE & BREAK DETAILS PANEL -->
+            <div class="bg-slate-800/80 rounded-2xl p-5 border border-slate-700 shadow-lg">
+                <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-indigo-400"></i> Daily Shift & Break Allowance Details
+                </h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-700">
+                        <span class="text-xs text-slate-400 block mb-1">Eat Breaks Left</span>
+                        <span id="cnt-eat-left" class="text-xl font-bold text-sky-400">2 / 2</span>
+                    </div>
+                    <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-700">
+                        <span class="text-xs text-slate-400 block mb-1">Smoke/Toilet Left</span>
+                        <span id="cnt-smoke-left" class="text-xl font-bold text-amber-400">6 / 6</span>
+                    </div>
+                    <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-700">
+                        <span class="text-xs text-slate-400 block mb-1">Eat Breaks Taken</span>
+                        <span id="cnt-eat-taken" class="text-xl font-bold text-slate-200">0</span>
+                    </div>
+                    <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-700">
+                        <span class="text-xs text-slate-400 block mb-1">Smoke/Toilet Taken</span>
+                        <span id="cnt-smoke-taken" class="text-xl font-bold text-slate-200">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Controls Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <!-- Single Start / Off Work Toggle Button -->
+                <button id="btn-toggle-work" onclick="toggleWorkStatus()" class="bg-emerald-600 hover:bg-emerald-500 text-white p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition shadow-lg">
+                    <i id="icon-toggle-work" class="fa-solid fa-play text-2xl"></i>
+                    <span id="text-toggle-work" class="font-bold text-sm">Start Work</span>
+                </button>
+
+                <!-- Back to Seat Button -->
+                <button id="btn-back-seat" onclick="setBreakStatus('Working')" class="bg-indigo-600/30 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/40 p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-chair text-2xl text-indigo-400"></i>
+                    <span class="font-bold text-sm">Back to Seat</span>
+                </button>
+
+                <!-- Smoke / Toilet Break (15 Mins) -->
+                <button id="btn-break-smoke" onclick="setBreakStatus('Smoke / Toilet Break')" class="bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-restroom text-2xl text-amber-400"></i>
+                    <span class="font-semibold text-sm">Smoke / Toilet (15m)</span>
+                </button>
+
+                <!-- Eat Break (1 Hour) -->
+                <button id="btn-break-eat" onclick="setBreakStatus('Eat Break')" class="bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-utensils text-2xl text-sky-400"></i>
+                    <span class="font-semibold text-sm">Eat Break (1 Hr)</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ADMIN PANEL VIEW -->
+        <div id="view-admin" class="hidden space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Admin Control Panel</h2>
+                    <p class="text-slate-400 text-sm">Live attendance, work durations & team account control</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="openUserModal()" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+                        <i class="fa-solid fa-user-plus"></i> Add User
+                    </button>
+                    <button onclick="loadAdminData()" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+                        <i class="fa-solid fa-rotate text-indigo-400"></i> Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Live Employee Activity Feed -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i> Live Team Status & Total Worked Hours
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="text-xs uppercase bg-slate-900/60 text-slate-400">
+                            <tr>
+                                <th class="px-4 py-3">Employee</th>
+                                <th class="px-4 py-3">Current Status</th>
+                                <th class="px-4 py-3">Total Worked</th>
+                                <th class="px-4 py-3">Last Activity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-activity-list" class="divide-y divide-slate-700/50">
+                            <tr><td colspan="4" class="px-4 py-3 text-slate-400 text-xs">Loading live data from Google Sheet...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Registered Accounts List -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-users-gear text-indigo-400"></i> Registered User Accounts
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="text-xs uppercase bg-slate-900/60 text-slate-400">
+                            <tr>
+                                <th class="px-4 py-3">Username</th>
+                                <th class="px-4 py-3">Role</th>
+                                <th class="px-4 py-3">Password</th>
+                            </tr>
+                        </thead>
+                        <tbody id="user-accounts-list" class="divide-y divide-slate-700/50"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ADD USER MODAL -->
+    <div id="modal-user" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 class="text-xl font-bold text-white mb-4">Add New Team Member</h3>
+            <form onsubmit="saveUserAccount(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Username</label>
+                    <input type="text" id="modal-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Password</label>
+                    <input type="password" id="modal-password" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Role</label>
+                    <select id="modal-role" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white">
+                        <option value="employee">Employee</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-700">
+                    <button type="button" onclick="closeUserModal()" class="px-4 py-2 rounded-lg bg-slate-700 text-sm">Cancel</button>
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 text-sm font-semibold">Save Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyR-z0V-Vges16Xa-13Mw5YVFT4oxSHWNDB7IxSnd4cci58QvsOOT2YVbX4tqFn6q1v/exec";
+
+        let currentUser = null;
+        let workInterval = null;
+        let breakInterval = null;
+
+        const MAX_EAT_BREAKS = 2;
+        const MAX_SMOKE_BREAKS = 6;
+
+        let defaultUsers = [
+            { id: 'admin', username: 'admin', password: 'admin', role: 'admin' },
+            { id: 'u_rashik', username: 'Rashik', password: '215893', role: 'admin' }
+        ];
+        let users = JSON.parse(localStorage.getItem('tp_users')) || defaultUsers;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initClocks();
+            fetchUsersFromSheet();
+            checkSession();
+        });
+
+        function initClocks() {
+            setInterval(() => {
+                const now = new Date();
+                document.getElementById('clock-uk').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Europe/London' });
+                document.getElementById('clock-eu').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Europe/Paris' });
+                document.getElementById('clock-bd').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka' });
+                document.getElementById('clock-kh').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Phnom_Penh' });
+            }, 1000);
         }
-        state.status = 'Working';
-        state.breakEnd = null;
-        state.lastStartTimestamp = Date.now();
-    } else {
-        // Pause shift timer & record break start
-        if (state.lastStartTimestamp) {
-            let elapsed = Math.floor((Date.now() - state.lastStartTimestamp) / 1000);
-            state.accumulatedSec = (state.accumulatedSec || 0) + elapsed;
-            state.lastStartTimestamp = null;
-        }
-        state.status = type;
-        state.lastBreakStartTimestamp = Date.now();
 
-        if (type === 'Smoke / Toilet Break') {
-            state.breakEnd = Date.now() + (15 * 60 * 1000);
-        } else if (type === 'Eat Break') {
-            state.breakEnd = Date.now() + (60 * 60 * 1000);
+        function fetchUsersFromSheet() {
+            fetch(`${GOOGLE_SCRIPT_URL}?action=getUsers`)
+                .then(res => res.json())
+                .then(data => {
+                    if (Array.isArray(data) && data.length > 0) {
+                        users = data;
+                        localStorage.setItem('tp_users', JSON.stringify(users));
+                        if (currentUser && currentUser.role === 'admin') renderAdminPanel();
+                    }
+                })
+                .catch(err => console.error("Error loading users:", err));
         }
-    }
-    saveAndSyncState(state);
-}
+
+        function checkSession() {
+            const saved = localStorage.getItem('tp_session');
+            if (saved) {
+                currentUser = JSON.parse(saved);
+            }
+            renderApp();
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('login-username').value.trim();
+            const p = document.getElementById('login-password').value.trim();
+
+            const found = users.find(x => x.username.toLowerCase() === u.toLowerCase() && String(x.password) === p);
+
+            if (found) {
+                currentUser = found;
+                localStorage.setItem('tp_session', JSON.stringify(currentUser));
+                renderApp();
+            } else {
+                alert('Invalid Username or Password!');
+            }
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            localStorage.removeItem('tp_session');
+            clearInterval(workInterval);
+            clearInterval(breakInterval);
+            renderApp();
+        }
+
+        function renderApp() {
+            const headerStatus = document.getElementById('user-header-status');
+            const loginView = document.getElementById('view-login');
+            const dashView = document.getElementById('view-dashboard');
+            const adminView = document.getElementById('view-admin');
+
+            if (!currentUser) {
+                headerStatus.innerHTML = '';
+                loginView.classList.remove('hidden');
+                dashView.classList.add('hidden');
+                adminView.classList.add('hidden');
+            } else {
+                loginView.classList.add('hidden');
+                headerStatus.innerHTML = `
+                    <span class="text-xs text-slate-300">Logged in as <b class="text-indigo-400">${currentUser.username}</b> (${currentUser.role})</span>
+                    <button onclick="handleLogout()" class="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1.5 rounded text-white">Logout</button>
+                `;
+
+                if (currentUser.role === 'admin') {
+                    dashView.classList.add('hidden');
+                    adminView.classList.remove('hidden');
+                    renderAdminPanel();
+                } else {
+                    adminView.classList.add('hidden');
+                    dashView.classList.remove('hidden');
+                    renderEmployeeDashboard();
+                }
+            }
+        }
+
+        function toggleWorkStatus() {
+            let state = getUserState();
+
+            if (state.status.includes('Break')) {
+                alert("Please click 'Back to Seat' first before ending your shift!");
+                return;
+            }
+
+            if (state.status === 'Working') {
+                // Ending shift -> Complete Cycle Reset
+                if (state.lastStartTimestamp) {
+                    let elapsed = Math.floor((Date.now() - state.lastStartTimestamp) / 1000);
+                    state.accumulatedSec = (state.accumulatedSec || 0) + elapsed;
+                    state.lastStartTimestamp = null;
+                }
+                state.status = 'Off Work';
+                state.isWorking = false;
+                state.breakEnd = null;
+
+                // Reset cycle statistics
+                state.accumulatedSec = 0;
+                state.totalBreakSec = 0;
+                state.eatCount = 0;
+                state.smokeCount = 0;
+            } else {
+                // Starting new shift cycle
+                state.status = 'Working';
+                state.isWorking = true;
+                state.breakEnd = null;
+                state.accumulatedSec = 0;
+                state.totalBreakSec = 0;
+                state.eatCount = 0;
+                state.smokeCount = 0;
+                state.lastStartTimestamp = Date.now();
+            }
+            saveAndSyncState(state);
+        }
+
+        function setBreakStatus(type) {
+            let state = getUserState();
+
+            if (!state.isWorking && type !== 'Working') {
+                alert("Please click 'Start Work' first before taking a break!");
+                return;
+            }
+
+            if (state.status === type && type !== 'Working') {
+                alert(`You are already on a ${type}!`);
+                return;
+            }
+
+            if (state.status.includes('Break') && type !== 'Working') {
+                alert("You are currently on a break! Click 'Back to Seat' to resume work first.");
+                return;
+            }
+
+            // Check break limits
+            if (type === 'Eat Break') {
+                if ((state.eatCount || 0) >= MAX_EAT_BREAKS) {
+                    alert("Daily limit reached! You have used all 2 Eat Breaks for this shift.");
+                    return;
+                }
+            } else if (type === 'Smoke / Toilet Break') {
+                if ((state.smokeCount || 0) >= MAX_SMOKE_BREAKS) {
+                    alert("Daily limit reached! You have used all 6 Smoke/Toilet Breaks for this shift.");
+                    return;
+                }
+            }
+
+            if (type === 'Working') {
+                // Back to Seat (Resume Shift)
+                if (state.lastBreakStartTimestamp) {
+                    let breakElapsed = Math.floor((Date.now() - state.lastBreakStartTimestamp) / 1000);
+                    state.totalBreakSec = (state.totalBreakSec || 0) + breakElapsed;
+                    state.lastBreakStartTimestamp = null;
+                }
+                state.status = 'Working';
+                state.breakEnd = null;
+                state.lastStartTimestamp = Date.now();
+            } else {
+                // Record shift progress and start break
+                if (state.lastStartTimestamp) {
+                    let elapsed = Math.floor((Date.now() - state.lastStartTimestamp) / 1000);
+                    state.accumulatedSec = (state.accumulatedSec || 0) + elapsed;
+                    state.lastStartTimestamp = null;
+                }
+                state.status = type;
+                state.lastBreakStartTimestamp = Date.now();
+
+                if (type === 'Smoke / Toilet Break') {
+                    state.smokeCount = (state.smokeCount || 0) + 1;
+                    state.breakEnd = Date.now() + (15 * 60 * 1000);
+                } else if (type === 'Eat Break') {
+                    state.eatCount = (state.eatCount || 0) + 1;
+                    state.breakEnd = Date.now() + (60 * 60 * 1000);
+                }
+            }
+            saveAndSyncState(state);
+        }
+
+        function getUserState() {
+            return JSON.parse(localStorage.getItem(`tp_state_${currentUser.id}`)) || {
+                status: 'Off Work',
+                isWorking: false,
+                accumulatedSec: 0,
+                totalBreakSec: 0,
+                eatCount: 0,
+                smokeCount: 0,
+                lastStartTimestamp: null,
+                lastBreakStartTimestamp: null,
+                breakEnd: null
+            };
+        }
+
+        function saveAndSyncState(state) {
+            localStorage.setItem(`tp_state_${currentUser.id}`, JSON.stringify(state));
+
+            let currentTotal = state.accumulatedSec || 0;
+            if (state.status === 'Working' && state.lastStartTimestamp) {
+                currentTotal += Math.floor((Date.now() - state.lastStartTimestamp) / 1000);
+            }
+
+            const payload = {
+                action: "updateStatus",
+                username: currentUser.username,
+                status: state.status,
+                totalWorkSec: currentTotal
+            };
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).catch(err => console.error("Payload error:", err));
+
+            renderEmployeeDashboard();
+        }
+
+        function renderEmployeeDashboard() {
+            document.getElementById('dash-user-name').innerText = `Hello, ${currentUser.username}`;
+            let state = getUserState();
+            document.getElementById('dash-status-badge').innerText = state.status;
+
+            // Render Break Counters Panel
+            const eatTaken = state.eatCount || 0;
+            const smokeTaken = state.smokeCount || 0;
+
+            document.getElementById('cnt-eat-left').innerText = `${Math.max(0, MAX_EAT_BREAKS - eatTaken)} / ${MAX_EAT_BREAKS}`;
+            document.getElementById('cnt-smoke-left').innerText = `${Math.max(0, MAX_SMOKE_BREAKS - smokeTaken)} / ${MAX_SMOKE_BREAKS}`;
+            document.getElementById('cnt-eat-taken').innerText = eatTaken;
+            document.getElementById('cnt-smoke-taken').innerText = smokeTaken;
+
+            const btnToggle = document.getElementById('btn-toggle-work');
+            const iconToggle = document.getElementById('icon-toggle-work');
+            const textToggle = document.getElementById('text-toggle-work');
+
+            const btnSmoke = document.getElementById('btn-break-smoke');
+            const btnEat = document.getElementById('btn-break-eat');
+            const btnBackSeat = document.getElementById('btn-back-seat');
+
+            if (state.status === 'Working' || state.status.includes('Break')) {
+                btnToggle.className = "bg-rose-600 hover:bg-rose-500 text-white p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition shadow-lg";
+                iconToggle.className = "fa-solid fa-power-off text-2xl";
+                textToggle.innerText = "Off Work";
+            } else {
+                btnToggle.className = "bg-emerald-600 hover:bg-emerald-500 text-white p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition shadow-lg";
+                iconToggle.className = "fa-solid fa-play text-2xl";
+                textToggle.innerText = "Start Work";
+            }
+
+            if (state.status.includes('Break')) {
+                btnSmoke.classList.add('opacity-40', 'cursor-not-allowed');
+                btnEat.classList.add('opacity-40', 'cursor-not-allowed');
+                btnBackSeat.classList.remove('opacity-50');
+                btnBackSeat.classList.add('ring-2', 'ring-indigo-400', 'animate-pulse');
+            } else {
+                btnSmoke.classList.remove('opacity-40', 'cursor-not-allowed');
+                btnEat.classList.remove('opacity-40', 'cursor-not-allowed');
+                btnBackSeat.classList.remove('ring-2', 'ring-indigo-400', 'animate-pulse');
+            }
+
+            clearInterval(workInterval);
+            clearInterval(breakInterval);
+
+            // Shift Worked Timer (Pauses during breaks)
+            workInterval = setInterval(() => {
+                let totalSec = state.accumulatedSec || 0;
+                if (state.status === 'Working' && state.lastStartTimestamp) {
+                    totalSec += Math.floor((Date.now() - state.lastStartTimestamp) / 1000);
+                }
+                const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+                const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+                const s = String(totalSec % 60).padStart(2, '0');
+                document.getElementById('timer-work').innerText = `${h}:${m}:${s}`;
+
+                // Total Break Time Counter
+                let currentBreakSec = state.totalBreakSec || 0;
+                if (state.status.includes('Break') && state.lastBreakStartTimestamp) {
+                    currentBreakSec += Math.floor((Date.now() - state.lastBreakStartTimestamp) / 1000);
+                }
+                const bh = String(Math.floor(currentBreakSec / 3600)).padStart(2, '0');
+                const bm = String(Math.floor((currentBreakSec % 3600) / 60)).padStart(2, '0');
+                const bs = String(currentBreakSec % 60).padStart(2, '0');
+                document.getElementById('timer-break-total').innerText = `${bh}:${bm}:${bs}`;
+            }, 1000);
+
+            // Break Countdown Timer
+            breakInterval = setInterval(() => {
+                if (state.breakEnd && state.status.includes('Break')) {
+                    const diff = Math.max(0, Math.floor((state.breakEnd - Date.now()) / 1000));
+                    const m = String(Math.floor(diff / 60)).padStart(2, '0');
+                    const s = String(diff % 60).padStart(2, '0');
+                    document.getElementById('timer-break-countdown').innerText = `00:${m}:${s}`;
+                } else {
+                    document.getElementById('timer-break-countdown').innerText = "00:00:00";
+                }
+            }, 1000);
+        }
+
+        function renderAdminPanel() {
+            loadAdminData();
+
+            const userList = document.getElementById('user-accounts-list');
+            userList.innerHTML = '';
+            users.forEach(u => {
+                userList.innerHTML += `
+                    <tr>
+                        <td class="px-4 py-3 font-semibold text-white">${u.username}</td>
+                        <td class="px-4 py-3 text-xs uppercase text-indigo-400 font-bold">${u.role}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-slate-400">${u.password}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function loadAdminData() {
+            fetch(`${GOOGLE_SCRIPT_URL}?action=getAttendance`)
+                .then(res => res.json())
+                .then(logs => {
+                    const activityList = document.getElementById('admin-activity-list');
+                    if (!logs || logs.length === 0) {
+                        activityList.innerHTML = `<tr><td colspan="4" class="px-4 py-3 text-slate-400 text-xs">No records found in Google Sheet.</td></tr>`;
+                        return;
+                    }
+                    activityList.innerHTML = '';
+                    logs.reverse().slice(0, 20).forEach(log => {
+                        let sec = parseInt(log.totalWorkSec || 0);
+                        let h = String(Math.floor(sec / 3600)).padStart(2, '0');
+                        let m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+                        let duration = `${h}h ${m}m`;
+
+                        activityList.innerHTML += `
+                            <tr>
+                                <td class="px-4 py-3 font-bold text-white">${log.username}</td>
+                                <td class="px-4 py-3">
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                        log.status === 'Working' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                                        log.status === 'Off Work' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                    }">${log.status}</span>
+                                </td>
+                                <td class="px-4 py-3 font-mono font-bold text-emerald-400">${duration}</td>
+                                <td class="px-4 py-3 text-xs text-slate-400">${log.timestamp}</td>
+                            </tr>
+                        `;
+                    });
+                })
+                .catch(err => console.error("Error loading activity:", err));
+        }
+
+        function openUserModal() { document.getElementById('modal-user').classList.remove('hidden'); }
+        function closeUserModal() { 
+            document.getElementById('modal-user').classList.add('hidden');
+            document.getElementById('modal-username').value = '';
+            document.getElementById('modal-password').value = '';
+        }
+
+        function saveUserAccount(e) {
+            e.preventDefault();
+            const u = document.getElementById('modal-username').value.trim();
+            const p = document.getElementById('modal-password').value.trim();
+            const r = document.getElementById('modal-role').value;
+
+            if (users.some(x => x.username.toLowerCase() === u.toLowerCase())) {
+                alert(`User '${u}' already exists!`);
+                return;
+            }
+
+            const newUser = { id: 'u_' + Date.now(), username: u, password: p, role: r };
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: "addUser", user: newUser })
+            }).then(() => {
+                alert(`User '${u}' added and synced to Google Sheet!`);
+                users.push(newUser);
+                localStorage.setItem('tp_users', JSON.stringify(users));
+                closeUserModal();
+                renderAdminPanel();
+            }).catch(err => alert("Error saving user: " + err.message));
+        }
+    </script>
+</body>
+</html>
