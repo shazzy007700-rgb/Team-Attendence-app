@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Team Devil - Attendance & Time Tracker</title>
+    <title>Team Pulse - Attendance & Time Tracker</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -21,7 +21,7 @@
             <div class="flex items-center gap-3">
                 <div class="bg-indigo-600 p-2 rounded-lg text-white"><i class="fa-solid fa-clock-rotate-left text-xl"></i></div>
                 <div>
-                    <h1 class="font-bold text-lg text-white leading-tight">Team Devil</h1>
+                    <h1 class="font-bold text-lg text-white leading-tight">Team Pulse</h1>
                     <p class="text-xs text-slate-400">Multi-Region Attendance Tracker</p>
                 </div>
             </div>
@@ -143,25 +143,21 @@
 
             <!-- Action Controls Grid -->
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <!-- Single Start / Off Work Toggle Button -->
                 <button id="btn-toggle-work" onclick="toggleWorkStatus()" class="bg-emerald-600 hover:bg-emerald-500 text-white p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition shadow-lg">
                     <i id="icon-toggle-work" class="fa-solid fa-play text-2xl"></i>
                     <span id="text-toggle-work" class="font-bold text-sm">Start Work</span>
                 </button>
 
-                <!-- Back to Seat Button -->
                 <button id="btn-back-seat" onclick="setBreakStatus('Working')" class="bg-indigo-600/30 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/40 p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition">
                     <i class="fa-solid fa-chair text-2xl text-indigo-400"></i>
                     <span class="font-bold text-sm">Back to Seat</span>
                 </button>
 
-                <!-- Smoke / Toilet Break (15 Mins) -->
                 <button id="btn-break-smoke" onclick="setBreakStatus('Smoke / Toilet Break')" class="bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition">
                     <i class="fa-solid fa-restroom text-2xl text-amber-400"></i>
                     <span class="font-semibold text-sm">Smoke / Toilet (15m)</span>
                 </button>
 
-                <!-- Eat Break (1 Hour) -->
                 <button id="btn-break-eat" onclick="setBreakStatus('Eat Break')" class="bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition">
                     <i class="fa-solid fa-utensils text-2xl text-sky-400"></i>
                     <span class="font-semibold text-sm">Eat Break (1 Hr)</span>
@@ -174,35 +170,60 @@
             <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
                 <div>
                     <h2 class="text-2xl font-bold text-white">Admin Control Panel</h2>
-                    <p class="text-slate-400 text-sm">Live attendance, work durations & team account control</p>
+                    <p class="text-slate-400 text-sm">Real-time employee activity, working vs break durations & credentials</p>
                 </div>
                 <div class="flex gap-2">
                     <button onclick="openUserModal()" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
                         <i class="fa-solid fa-user-plus"></i> Add User
                     </button>
                     <button onclick="loadAdminData()" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
-                        <i class="fa-solid fa-rotate text-indigo-400"></i> Refresh
+                        <i class="fa-solid fa-rotate text-indigo-400"></i> Refresh Live Data
                     </button>
+                </div>
+            </div>
+
+            <!-- Admin Overview Summary Badges -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center gap-4">
+                    <div class="bg-emerald-500/20 text-emerald-400 p-3 rounded-lg text-2xl"><i class="fa-solid fa-laptop-code"></i></div>
+                    <div>
+                        <span class="text-xs text-slate-400 block">Working Now</span>
+                        <span id="stat-working-now" class="text-2xl font-bold text-white">0</span>
+                    </div>
+                </div>
+                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center gap-4">
+                    <div class="bg-amber-500/20 text-amber-400 p-3 rounded-lg text-2xl"><i class="fa-solid fa-mug-hot"></i></div>
+                    <div>
+                        <span class="text-xs text-slate-400 block">On Break</span>
+                        <span id="stat-on-break" class="text-2xl font-bold text-white">0</span>
+                    </div>
+                </div>
+                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center gap-4">
+                    <div class="bg-rose-500/20 text-rose-400 p-3 rounded-lg text-2xl"><i class="fa-solid fa-user-slash"></i></div>
+                    <div>
+                        <span class="text-xs text-slate-400 block">Off Work</span>
+                        <span id="stat-off-work" class="text-2xl font-bold text-white">0</span>
+                    </div>
                 </div>
             </div>
 
             <!-- Live Employee Activity Feed -->
             <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
                 <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i> Live Team Status & Total Worked Hours
+                    <i class="fa-solid fa-users text-indigo-400"></i> Employee Live Tracking & Work Summary
                 </h3>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-300">
                         <thead class="text-xs uppercase bg-slate-900/60 text-slate-400">
                             <tr>
                                 <th class="px-4 py-3">Employee</th>
-                                <th class="px-4 py-3">Current Status</th>
+                                <th class="px-4 py-3">Current Activity</th>
                                 <th class="px-4 py-3">Total Worked</th>
-                                <th class="px-4 py-3">Last Activity</th>
+                                <th class="px-4 py-3">Last Updated</th>
                             </tr>
                         </thead>
                         <tbody id="admin-activity-list" class="divide-y divide-slate-700/50">
-                            <tr><td colspan="4" class="px-4 py-3 text-slate-400 text-xs">Loading live data from Google Sheet...</td></tr>
+                            <tr><td colspan="4" class="px-4 py-3 text-slate-400 text-xs">Loading live team data...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -211,7 +232,7 @@
             <!-- Registered Accounts List -->
             <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
                 <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-users-gear text-indigo-400"></i> Registered User Accounts
+                    <i class="fa-solid fa-users-gear text-indigo-400"></i> Registered Accounts Manager
                 </h3>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-300">
@@ -374,7 +395,6 @@
             }
 
             if (state.status === 'Working') {
-                // Ending shift -> Complete Cycle Reset
                 if (state.lastStartTimestamp) {
                     let elapsed = Math.floor((Date.now() - state.lastStartTimestamp) / 1000);
                     state.accumulatedSec = (state.accumulatedSec || 0) + elapsed;
@@ -384,13 +404,11 @@
                 state.isWorking = false;
                 state.breakEnd = null;
 
-                // Reset cycle statistics
                 state.accumulatedSec = 0;
                 state.totalBreakSec = 0;
                 state.eatCount = 0;
                 state.smokeCount = 0;
             } else {
-                // Starting new shift cycle
                 state.status = 'Working';
                 state.isWorking = true;
                 state.breakEnd = null;
@@ -421,7 +439,6 @@
                 return;
             }
 
-            // Check break limits
             if (type === 'Eat Break') {
                 if ((state.eatCount || 0) >= MAX_EAT_BREAKS) {
                     alert("Daily limit reached! You have used all 2 Eat Breaks for this shift.");
@@ -435,7 +452,6 @@
             }
 
             if (type === 'Working') {
-                // Back to Seat (Resume Shift)
                 if (state.lastBreakStartTimestamp) {
                     let breakElapsed = Math.floor((Date.now() - state.lastBreakStartTimestamp) / 1000);
                     state.totalBreakSec = (state.totalBreakSec || 0) + breakElapsed;
@@ -445,7 +461,6 @@
                 state.breakEnd = null;
                 state.lastStartTimestamp = Date.now();
             } else {
-                // Record shift progress and start break
                 if (state.lastStartTimestamp) {
                     let elapsed = Math.floor((Date.now() - state.lastStartTimestamp) / 1000);
                     state.accumulatedSec = (state.accumulatedSec || 0) + elapsed;
@@ -509,7 +524,6 @@
             let state = getUserState();
             document.getElementById('dash-status-badge').innerText = state.status;
 
-            // Render Break Counters Panel
             const eatTaken = state.eatCount || 0;
             const smokeTaken = state.smokeCount || 0;
 
@@ -550,7 +564,6 @@
             clearInterval(workInterval);
             clearInterval(breakInterval);
 
-            // Shift Worked Timer (Pauses during breaks)
             workInterval = setInterval(() => {
                 let totalSec = state.accumulatedSec || 0;
                 if (state.status === 'Working' && state.lastStartTimestamp) {
@@ -561,7 +574,6 @@
                 const s = String(totalSec % 60).padStart(2, '0');
                 document.getElementById('timer-work').innerText = `${h}:${m}:${s}`;
 
-                // Total Break Time Counter
                 let currentBreakSec = state.totalBreakSec || 0;
                 if (state.status.includes('Break') && state.lastBreakStartTimestamp) {
                     currentBreakSec += Math.floor((Date.now() - state.lastBreakStartTimestamp) / 1000);
@@ -572,7 +584,6 @@
                 document.getElementById('timer-break-total').innerText = `${bh}:${bm}:${bs}`;
             }, 1000);
 
-            // Break Countdown Timer
             breakInterval = setInterval(() => {
                 if (state.breakEnd && state.status.includes('Break')) {
                     const diff = Math.max(0, Math.floor((state.breakEnd - Date.now()) / 1000));
@@ -611,7 +622,28 @@
                         return;
                     }
                     activityList.innerHTML = '';
-                    logs.reverse().slice(0, 20).forEach(log => {
+
+                    let workingCount = 0;
+                    let breakCount = 0;
+                    let offCount = 0;
+
+                    // Latest record per user mapping
+                    let latestUserMap = {};
+                    logs.forEach(log => {
+                        latestUserMap[log.username] = log;
+                    });
+
+                    Object.values(latestUserMap).forEach(log => {
+                        if (log.status === 'Working') workingCount++;
+                        else if (log.status.includes('Break')) breakCount++;
+                        else offCount++;
+                    });
+
+                    document.getElementById('stat-working-now').innerText = workingCount;
+                    document.getElementById('stat-on-break').innerText = breakCount;
+                    document.getElementById('stat-off-work').innerText = offCount;
+
+                    logs.reverse().slice(0, 25).forEach(log => {
                         let sec = parseInt(log.totalWorkSec || 0);
                         let h = String(Math.floor(sec / 3600)).padStart(2, '0');
                         let m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
@@ -622,7 +654,7 @@
                                 <td class="px-4 py-3 font-bold text-white">${log.username}</td>
                                 <td class="px-4 py-3">
                                     <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                        log.status === 'Working' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                                        log.status === 'Working' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse' :
                                         log.status === 'Off Work' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                                     }">${log.status}</span>
                                 </td>
