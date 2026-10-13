@@ -3,14 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Team Pulse - Attendance & Time Tracker</title>
+    <title>Team Pulse - Google Sheet Attendance Tracker</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
@@ -22,17 +19,17 @@
     <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-40 shadow-lg">
         <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center gap-3">
-                <div class="bg-indigo-600 p-2 rounded-lg text-white"><i class="fa-solid fa-clock-rotate-left text-xl"></i></div>
+                <div class="bg-emerald-600 p-2 rounded-lg text-white"><i class="fa-solid fa-file-excel text-xl"></i></div>
                 <div>
                     <h1 class="font-bold text-lg text-white leading-tight">Team Pulse</h1>
-                    <p class="text-xs text-slate-400">Multi-Region Attendance Tracker</p>
+                    <p class="text-xs text-slate-400">Google Sheets Connected Attendance Tracker</p>
                 </div>
             </div>
 
-            <!-- Firebase Connection Status Badge -->
-            <div id="firebase-status-badge" class="flex items-center gap-2 bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-400">
-                <span class="w-2.5 h-2.5 rounded-full bg-rose-500" id="fb-dot"></span>
-                <span id="fb-text">Firebase: Connecting...</span>
+            <!-- Google Sheet Status Badge -->
+            <div id="sheet-status-badge" class="flex items-center gap-2 bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-full text-xs font-semibold text-emerald-400">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                <span>Google Sheet: Active</span>
             </div>
 
             <!-- World Clocks Bar -->
@@ -61,7 +58,7 @@
         <!-- LOGIN VIEW -->
         <div id="view-login" class="max-w-md mx-auto my-12 bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl">
             <div class="text-center mb-6">
-                <i class="fa-solid fa-user-lock text-4xl text-indigo-400 mb-2"></i>
+                <i class="fa-solid fa-user-lock text-4xl text-emerald-400 mb-2"></i>
                 <h2 class="text-2xl font-bold text-white">Sign In to Workspace</h2>
                 <p class="text-sm text-slate-400">Enter employee or admin credentials</p>
             </div>
@@ -69,19 +66,19 @@
             <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Username</label>
-                    <input type="text" id="login-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500" placeholder="e.g. admin or employee1">
+                    <input type="text" id="login-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500" placeholder="e.g. admin or employee1">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Password</label>
-                    <input type="password" id="login-password" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500" placeholder="••••••••">
+                    <input type="password" id="login-password" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500" placeholder="••••••••">
                 </div>
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-lg transition shadow-lg shadow-indigo-600/30">
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-lg transition shadow-lg shadow-emerald-600/30">
                     Log In
                 </button>
             </form>
 
             <div class="mt-6 pt-4 border-t border-slate-700/60 text-xs text-center text-slate-400">
-                <p>Default Admin: <span class="text-indigo-400 font-mono">admin</span> / <span class="text-indigo-400 font-mono">admin</span></p>
+                <p>Default Admin: <span class="text-emerald-400 font-mono">admin</span> / <span class="text-emerald-400 font-mono">admin</span></p>
             </div>
         </div>
 
@@ -89,7 +86,7 @@
         <div id="view-dashboard" class="hidden space-y-6">
             <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
                 <div>
-                    <span class="text-xs font-semibold uppercase tracking-wider text-indigo-400">Employee Portal</span>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Employee Portal</span>
                     <h2 id="dash-user-name" class="text-2xl font-bold text-white">Welcome!</h2>
                     <p class="text-slate-400 text-sm">Status: <span id="dash-status-badge" class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-700 text-slate-300">Off Work</span></p>
                 </div>
@@ -147,22 +144,19 @@
             <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
                 <div>
                     <h2 class="text-2xl font-bold text-white">Admin Control Panel</h2>
-                    <p class="text-slate-400 text-sm">Real-time team overview & credential management</p>
+                    <p class="text-slate-400 text-sm">Manage users & view Google Sheet sync status</p>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="openUserModal()" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+                    <button onclick="openUserModal()" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
                         <i class="fa-solid fa-user-plus"></i> Add User
                     </button>
                 </div>
             </div>
 
-            <!-- Team Live Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="admin-team-grid"></div>
-
             <!-- User Accounts Manager -->
             <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 mt-8">
                 <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-users-gear text-indigo-400"></i> Manage Team Accounts
+                    <i class="fa-solid fa-users-gear text-emerald-400"></i> Manage Team Accounts
                 </h3>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-300">
@@ -203,31 +197,28 @@
                 </div>
                 <div class="flex justify-end gap-3 pt-4 border-t border-slate-700">
                     <button type="button" onclick="closeUserModal()" class="px-4 py-2 rounded-lg bg-slate-700 text-sm">Cancel</button>
-                    <button type="submit" id="btn-save-user" class="px-4 py-2 rounded-lg bg-indigo-600 text-sm font-semibold">Save Account</button>
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 text-sm font-semibold">Save Account</button>
                 </div>
             </form>
         </div>
     </div>
 
     <script>
+        // Google Apps Script Web App Endpoint
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyR-z0V-Vges16Xa-13Mw5YVFT4oxSHWNDB7IxSnd4cci58QvsOOT2YVbX4tqFn6q1v/exec";
+
         let currentUser = null;
-        let db = null;
         let workInterval = null;
         let breakInterval = null;
 
-        // Make sure to replace YOUR_API_KEY with your real Firebase API Key
-        const firebaseConfig = {
-            apiKey: "AIzaSyAu4sXoYBW0g5nJ2p-77KPj1Ujh03Nv6ds", 
-            authDomain: "attendence-app-7e87d.firebaseapp.com",
-            projectId: "attendence-app-7e87d"
-        };
-
         const defaultAdmin = { id: 'admin', username: 'admin', password: 'admin', role: 'admin' };
-        let users = JSON.parse(localStorage.getItem('tp_users')) || [defaultAdmin];
+        let users = JSON.parse(localStorage.getItem('tp_users')) || [
+            defaultAdmin,
+            { id: 'emp1', username: 'employee1', password: '123', role: 'employee' }
+        ];
 
         document.addEventListener('DOMContentLoaded', () => {
             initClocks();
-            initFirebase();
             checkSession();
         });
 
@@ -238,52 +229,6 @@
                 document.getElementById('clock-eu').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Europe/Paris' });
                 document.getElementById('clock-bd').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka' });
             }, 1000);
-        }
-
-        function initFirebase() {
-            const dot = document.getElementById('fb-dot');
-            const text = document.getElementById('fb-text');
-
-            if (typeof firebase !== 'undefined' && firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("YOUR_ACTUAL")) {
-                try {
-                    if (!firebase.apps.length) {
-                        firebase.initializeApp(firebaseConfig);
-                    }
-                    db = firebase.firestore();
-                    dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping";
-                    text.innerText = "Firebase: Connected";
-                    text.className = "text-emerald-400 font-semibold";
-
-                    syncUsersFromCloud();
-                } catch(e) {
-                    console.error("Firebase initialization failed:", e);
-                    dot.className = "w-2.5 h-2.5 rounded-full bg-rose-500";
-                    text.innerText = "Firebase: Config Error";
-                }
-            } else {
-                dot.className = "w-2.5 h-2.5 rounded-full bg-amber-500";
-                text.innerText = "Firebase: Add API Key";
-            }
-        }
-
-        function syncUsersFromCloud() {
-            if (!db) return;
-            db.collection('users').onSnapshot((snapshot) => {
-                let cloudUsers = [defaultAdmin];
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    if (!cloudUsers.some(u => u.username.toLowerCase() === data.username.toLowerCase())) {
-                        cloudUsers.push(data);
-                    }
-                });
-                users = cloudUsers;
-                localStorage.setItem('tp_users', JSON.stringify(users));
-                if (currentUser && currentUser.role === 'admin') {
-                    renderAdminPanel();
-                }
-            }, (err) => {
-                console.error("Cloud user sync failed:", err);
-            });
         }
 
         function checkSession() {
@@ -306,7 +251,7 @@
                 localStorage.setItem('tp_session', JSON.stringify(currentUser));
                 renderApp();
             } else {
-                alert('Invalid Username or Password! Ensure the account has been added by Admin.');
+                alert('Invalid Username or Password!');
             }
         }
 
@@ -332,7 +277,7 @@
             } else {
                 loginView.classList.add('hidden');
                 headerStatus.innerHTML = `
-                    <span class="text-xs text-slate-300">Logged in as <b class="text-indigo-400">${currentUser.username}</b> (${currentUser.role})</span>
+                    <span class="text-xs text-slate-300">Logged in as <b class="text-emerald-400">${currentUser.username}</b> (${currentUser.role})</span>
                     <button onclick="handleLogout()" class="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1.5 rounded text-white">Logout</button>
                 `;
 
@@ -374,10 +319,15 @@
 
             localStorage.setItem(`tp_state_${currentUser.id}`, JSON.stringify(userState));
 
-            if (db) {
-                db.collection('attendance').doc(currentUser.id).set(userState, { merge: true })
-                .catch(err => console.error("Firebase status error:", err));
-            }
+            // Google Sheet-e Data Pathano
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userState)
+            })
+            .then(() => console.log("Logged to Google Sheet successfully"))
+            .catch(err => console.error("Error logging to sheet:", err));
 
             renderEmployeeDashboard();
         }
@@ -416,33 +366,6 @@
         }
 
         function renderAdminPanel() {
-            const grid = document.getElementById('admin-team-grid');
-            
-            if (db) {
-                db.collection('attendance').onSnapshot((snapshot) => {
-                    grid.innerHTML = '';
-                    snapshot.forEach((doc) => {
-                        const data = doc.data();
-                        grid.innerHTML += `
-                            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                                <div class="flex justify-between items-start mb-2">
-                                    <h4 class="font-bold text-white">${data.username || 'Employee'}</h4>
-                                    <span class="text-xs px-2.5 py-1 rounded-full font-semibold ${
-                                        data.status === 'Working' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                                        data.status === 'Off Work' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                                    }">${data.status}</span>
-                                </div>
-                                <p class="text-xs text-slate-400">Last updated: ${data.updatedAt ? new Date(data.updatedAt).toLocaleTimeString() : 'N/A'}</p>
-                            </div>
-                        `;
-                    });
-                }, (err) => {
-                    console.error("Attendance listener error:", err);
-                });
-            } else {
-                grid.innerHTML = '<p class="text-xs text-slate-400">Operating in local mode. Connect Firebase to view live active shifts.</p>';
-            }
-
             const list = document.getElementById('user-accounts-list');
             list.innerHTML = '';
             users.forEach(u => {
@@ -472,43 +395,23 @@
             const r = document.getElementById('modal-role').value;
 
             if (users.some(x => x.username.toLowerCase() === u.toLowerCase())) {
-                alert(`User with username '${u}' already exists!`);
+                alert(`User '${u}' already exists!`);
                 return;
             }
 
             const newUser = { id: 'u_' + Date.now(), username: u, password: p, role: r };
-
-            // Save locally
             users.push(newUser);
             localStorage.setItem('tp_users', JSON.stringify(users));
 
-            // Sync to Firebase Cloud
-            if (db) {
-                db.collection('users').doc(newUser.id).set(newUser).then(() => {
-                    alert(`User '${u}' created successfully in Cloud Database!`);
-                    closeUserModal();
-                    renderAdminPanel();
-                }).catch(err => {
-                    alert("Local user created, but Cloud sync failed: " + err.message);
-                    closeUserModal();
-                    renderAdminPanel();
-                });
-            } else {
-                alert(`User '${u}' saved locally (Firebase offline).`);
-                closeUserModal();
-                renderAdminPanel();
-            }
+            alert(`User '${u}' created!`);
+            closeUserModal();
+            renderAdminPanel();
         }
 
         function deleteUser(id) {
             if (confirm("Are you sure you want to delete this user?")) {
                 users = users.filter(x => x.id !== id);
                 localStorage.setItem('tp_users', JSON.stringify(users));
-
-                if (db) {
-                    db.collection('users').doc(id).delete()
-                    .catch(err => console.error("Cloud deletion error:", err));
-                }
                 renderAdminPanel();
             }
         }
