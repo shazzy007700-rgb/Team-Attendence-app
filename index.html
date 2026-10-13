@@ -32,19 +32,23 @@
                 <span>Google Sheet: Sync Active</span>
             </div>
 
-            <!-- World Clocks Bar -->
-            <div class="flex flex-wrap items-center gap-3 text-xs">
-                <div class="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700">
-                    <span class="text-slate-400">UK (GMT):</span>
+            <!-- World Clocks Bar (UK, Europe, BD, Cambodia) -->
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+                <div class="bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-700">
+                    <span class="text-slate-400">UK:</span>
                     <span id="clock-uk" class="font-mono font-bold text-emerald-400 ml-1">00:00:00</span>
                 </div>
-                <div class="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700">
-                    <span class="text-slate-400">Europe (CET):</span>
+                <div class="bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-700">
+                    <span class="text-slate-400">Europe:</span>
                     <span id="clock-eu" class="font-mono font-bold text-sky-400 ml-1">00:00:00</span>
                 </div>
-                <div class="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700">
-                    <span class="text-slate-400">BD (BST):</span>
+                <div class="bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-700">
+                    <span class="text-slate-400">BD:</span>
                     <span id="clock-bd" class="font-mono font-bold text-amber-400 ml-1">00:00:00</span>
+                </div>
+                <div class="bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-700">
+                    <span class="text-slate-400">Cambodia:</span>
+                    <span id="clock-kh" class="font-mono font-bold text-indigo-400 ml-1">00:00:00</span>
                 </div>
             </div>
 
@@ -66,7 +70,7 @@
             <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Username</label>
-                    <input type="text" id="login-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500" placeholder="e.g. admin or employee1">
+                    <input type="text" id="login-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500" placeholder="e.g. Rashik or admin">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Password</label>
@@ -78,7 +82,7 @@
             </form>
 
             <div class="mt-6 pt-4 border-t border-slate-700/60 text-xs text-center text-slate-400">
-                <p>Default Admin: <span class="text-indigo-400 font-mono">admin</span> / <span class="text-indigo-400 font-mono">admin</span></p>
+                <p>Default Admin: <span class="text-indigo-400 font-mono">Rashik</span> / <span class="text-indigo-400 font-mono">215893</span></p>
             </div>
         </div>
 
@@ -230,7 +234,8 @@
         let breakInterval = null;
 
         let defaultUsers = [
-            { id: 'admin', username: 'admin', password: 'admin', role: 'admin' }
+            { id: 'admin', username: 'admin', password: 'admin', role: 'admin' },
+            { id: 'u_rashik', username: 'Rashik', password: '215893', role: 'admin' }
         ];
         let users = JSON.parse(localStorage.getItem('tp_users')) || defaultUsers;
 
@@ -246,11 +251,12 @@
                 document.getElementById('clock-uk').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Europe/London' });
                 document.getElementById('clock-eu').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Europe/Paris' });
                 document.getElementById('clock-bd').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka' });
+                document.getElementById('clock-kh').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Phnom_Penh' });
             }, 1000);
         }
 
         function fetchUsersFromSheet() {
-            fetch(`${https://script.google.com/macros/s/AKfycbyR-z0V-Vges16Xa-13Mw5YVFT4oxSHWNDB7IxSnd4cci58QvsOOT2YVbX4tqFn6q1v/exec}?action=getUsers`)
+            fetch(`${GOOGLE_SCRIPT_URL}?action=getUsers`)
                 .then(res => res.json())
                 .then(data => {
                     if (Array.isArray(data) && data.length > 0) {
@@ -327,7 +333,7 @@
         function toggleWorkStatus() {
             let state = getUserState();
             if (state.status === 'Working' || state.status.includes('Break')) {
-                // Change to Off Work
+                // Off Work
                 if (state.lastStartTimestamp) {
                     let elapsed = Math.floor((Date.now() - state.lastStartTimestamp) / 1000);
                     state.accumulatedSec = (state.accumulatedSec || 0) + elapsed;
@@ -337,7 +343,7 @@
                 state.isWorking = false;
                 state.breakEnd = null;
             } else {
-                // Change to Working
+                // Working
                 state.status = 'Working';
                 state.isWorking = true;
                 state.breakEnd = null;
@@ -355,7 +361,7 @@
             }
 
             if (type === 'Working') {
-                // Back to Seat (Resume Work)
+                // Resume Work (Back to Seat)
                 state.status = 'Working';
                 state.breakEnd = null;
                 state.lastStartTimestamp = Date.now();
@@ -416,7 +422,6 @@
             let state = getUserState();
             document.getElementById('dash-status-badge').innerText = state.status;
 
-            // Single Toggle Button UI Update
             const btnToggle = document.getElementById('btn-toggle-work');
             const iconToggle = document.getElementById('icon-toggle-work');
             const textToggle = document.getElementById('text-toggle-work');
