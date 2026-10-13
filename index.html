@@ -32,7 +32,7 @@
             <!-- Firebase Connection Status Badge -->
             <div id="firebase-status-badge" class="flex items-center gap-2 bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-400">
                 <span class="w-2.5 h-2.5 rounded-full bg-rose-500" id="fb-dot"></span>
-                <span id="fb-text">Firebase: Disconnected</span>
+                <span id="fb-text">Firebase: Connecting...</span>
             </div>
 
             <!-- World Clocks Bar -->
@@ -153,9 +153,6 @@
                     <button onclick="openUserModal()" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
                         <i class="fa-solid fa-user-plus"></i> Add User
                     </button>
-                    <button onclick="openFirebaseConfigModal()" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
-                        <i class="fa-solid fa-gear"></i> Firebase Config
-                    </button>
                 </div>
             </div>
 
@@ -212,45 +209,24 @@
         </div>
     </div>
 
-    <!-- FIREBASE SETUP MODAL -->
-    <div id="modal-firebase" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <h3 class="text-xl font-bold text-white mb-2">Firebase Cloud Credentials</h3>
-            <p class="text-xs text-slate-400 mb-4">Input keys from Firebase Project Settings > General to sync live.</p>
-            <form onsubmit="saveFirebaseConfig(event)" class="space-y-3">
-                <div>
-                    <label class="block text-xs uppercase text-slate-400 mb-1">API Key</label>
-                    <input type="text" id="fb-apiKey" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-white">
-                </div>
-                <div>
-                    <label class="block text-xs uppercase text-slate-400 mb-1">Auth Domain</label>
-                    <input type="text" id="fb-authDomain" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-white">
-                </div>
-                <div>
-                    <label class="block text-xs uppercase text-slate-400 mb-1">Project ID</label>
-                    <input type="text" id="fb-projectId" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-white">
-                </div>
-                <div class="flex justify-end gap-3 pt-4 border-t border-slate-700">
-                    <button type="button" onclick="closeFirebaseModal()" class="px-4 py-2 rounded bg-slate-700 text-xs">Close</button>
-                    <button type="submit" class="px-4 py-2 rounded bg-indigo-600 text-xs font-semibold">Save & Sync</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <script>
         let currentUser = null;
         let db = null;
         let workInterval = null;
         let breakInterval = null;
 
-        // Default base accounts
+        // Ekhane Apnar Firebase Key-gulo Boshaben
+        const firebaseConfig = {
+            apiKey: "AIzaSyAu4sXoYBW0g5nJ2p-77KPj1Ujh03Nv6ds",
+            authDomain: "attendence-app-7e87d.firebaseapp.com",
+            projectId: "attendence-app-7e87d"
+        };
+
         let defaultUsers = [
-            { id: 'admin', username: 'admin', password: 'admin', role: 'admin' },
-            { id: 'emp1', username: 'employee1', password: '123', role: 'employee' }
+            { id: 'admin', username: 'admin', password: 'admin', role: 'admin' }
         ];
 
-        let users = JSON.parse(localStorage.getItem('tp_users')) || defaultUsers;
+        let users = defaultUsers;
 
         document.addEventListener('DOMContentLoaded', () => {
             initClocks();
@@ -268,46 +244,41 @@
         }
 
         function initFirebase() {
-            const config = JSON.parse(localStorage.getItem('tp_fb_config'));
             const dot = document.getElementById('fb-dot');
             const text = document.getElementById('fb-text');
 
-            if (config && config.apiKey && typeof firebase !== 'undefined') {
+            if (typeof firebase !== 'undefined') {
                 try {
                     if (!firebase.apps.length) {
-                        firebase.initializeApp(config);
+                        firebase.initializeApp(firebaseConfig);
                     }
                     db = firebase.firestore();
                     dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping";
                     text.innerText = "Firebase: Connected";
                     text.className = "text-emerald-400 font-semibold";
 
-                    // Sync Users from Firebase Cloud
                     syncUsersFromCloud();
                 } catch(e) {
                     console.error("Firebase connection failed", e);
                     dot.className = "w-2.5 h-2.5 rounded-full bg-rose-500";
                     text.innerText = "Firebase: Config Error";
                 }
-            } else {
-                dot.className = "w-2.5 h-2.5 rounded-full bg-amber-500";
-                text.innerText = "Firebase: Offline Mode";
             }
         }
 
         function syncUsersFromCloud() {
             if (!db) return;
             db.collection('users').onSnapshot((snapshot) => {
-                let cloudUsers = [];
+                let cloudUsers = [...defaultUsers];
                 snapshot.forEach((doc) => {
-                    cloudUsers.push(doc.data());
-                });
-                if (cloudUsers.length > 0) {
-                    users = cloudUsers;
-                    localStorage.setItem('tp_users', JSON.stringify(users));
-                    if (currentUser && currentUser.role === 'admin') {
-                        renderAdminPanel();
+                    const data = doc.data();
+                    if (!cloudUsers.some(u => u.username.toLowerCase() === data.username.toLowerCase())) {
+                        cloudUsers.push(data);
                     }
+                });
+                users = cloudUsers;
+                if (currentUser && currentUser.role === 'admin') {
+                    renderAdminPanel();
                 }
             });
         }
@@ -324,7 +295,7 @@
             e.preventDefault();
             const u = document.getElementById('login-username').value.trim();
             const p = document.getElementById('login-password').value.trim();
-            
+
             const found = users.find(x => x.username.toLowerCase() === u.toLowerCase() && x.password === p);
 
             if (found) {
@@ -401,9 +372,7 @@
             localStorage.setItem(`tp_state_${currentUser.id}`, JSON.stringify(userState));
 
             if (db) {
-                db.collection('attendance').doc(currentUser.id).set(userState, { merge: true })
-                .then(() => console.log("Status synced with Firebase"))
-                .catch(err => console.error("Firebase sync error:", err));
+                db.collection('attendance').doc(currentUser.id).set(userState, { merge: true });
             }
 
             renderEmployeeDashboard();
@@ -465,20 +434,6 @@
                         `;
                     });
                 });
-            } else {
-                grid.innerHTML = '';
-                users.filter(x => x.role !== 'admin').forEach(emp => {
-                    let state = JSON.parse(localStorage.getItem(`tp_state_${emp.id}`)) || { status: 'Off Work' };
-                    grid.innerHTML += `
-                        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                            <div class="flex justify-between items-start mb-2">
-                                <h4 class="font-bold text-white">${emp.username}</h4>
-                                <span class="text-xs px-2 py-0.5 rounded bg-slate-700 text-indigo-300">${state.status}</span>
-                            </div>
-                            <p class="text-xs text-slate-400">Local Offline State</p>
-                        </div>
-                    `;
-                });
             }
 
             const list = document.getElementById('user-accounts-list');
@@ -489,7 +444,7 @@
                         <td class="px-4 py-3 font-semibold text-white">${u.username}</td>
                         <td class="px-4 py-3 text-xs uppercase">${u.role}</td>
                         <td class="px-4 py-3">
-                            <button onclick="deleteUser('${u.id}')" class="text-rose-400 hover:text-rose-300 text-xs"><i class="fa-solid fa-trash"></i> Delete</button>
+                            ${u.username !== 'admin' ? `<button onclick="deleteUser('${u.id}')" class="text-rose-400 hover:text-rose-300 text-xs"><i class="fa-solid fa-trash"></i> Delete</button>` : '<span class="text-xs text-slate-500">System Admin</span>'}
                         </td>
                     </tr>
                 `;
@@ -506,40 +461,23 @@
             const r = document.getElementById('modal-role').value;
 
             const newUser = { id: 'u_' + Date.now(), username: u, password: p, role: r };
-            users.push(newUser);
-            localStorage.setItem('tp_users', JSON.stringify(users));
 
-            // Sync User to Firebase Cloud
             if (db) {
-                db.collection('users').doc(newUser.id).set(newUser);
+                db.collection('users').doc(newUser.id).set(newUser).then(() => {
+                    alert(`User '${u}' created successfully in Firebase Cloud!`);
+                    closeUserModal();
+                }).catch(err => alert("Error saving user: " + err.message));
+            } else {
+                alert("Firebase not connected!");
             }
-
-            closeUserModal();
-            renderAdminPanel();
         }
 
         function deleteUser(id) {
-            users = users.filter(x => x.id !== id);
-            localStorage.setItem('tp_users', JSON.stringify(users));
-            if (db) {
-                db.collection('users').doc(id).delete();
+            if (confirm("Are you sure you want to delete this user?")) {
+                if (db) {
+                    db.collection('users').doc(id).delete();
+                }
             }
-            renderAdminPanel();
-        }
-
-        function openFirebaseConfigModal() { document.getElementById('modal-firebase').classList.remove('hidden'); }
-        function closeFirebaseModal() { document.getElementById('modal-firebase').classList.add('hidden'); }
-
-        function saveFirebaseConfig(e) {
-            e.preventDefault();
-            const cfg = {
-                apiKey: document.getElementById('fb-apiKey').value.trim(),
-                authDomain: document.getElementById('fb-authDomain').value.trim(),
-                projectId: document.getElementById('fb-projectId').value.trim()
-            };
-            localStorage.setItem('tp_fb_config', JSON.stringify(cfg));
-            closeFirebaseModal();
-            location.reload();
         }
     </script>
 </body>
