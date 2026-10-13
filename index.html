@@ -32,7 +32,7 @@
                 <span>Google Sheet: Sync Active</span>
             </div>
 
-            <!-- World Clocks Bar (UK, Europe, BD, Cambodia) -->
+            <!-- World Clocks Bar -->
             <div class="flex flex-wrap items-center gap-2 text-xs">
                 <div class="bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-700">
                     <span class="text-slate-400">UK:</span>
@@ -96,15 +96,20 @@
                 </div>
 
                 <!-- Timer Displays -->
-                <div class="flex items-center gap-6 bg-slate-900/60 p-4 rounded-xl border border-slate-700">
+                <div class="flex items-center gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-700">
                     <div class="text-center">
                         <span class="text-xs text-slate-400 block mb-1">Worked Time</span>
-                        <span id="timer-work" class="text-3xl font-mono font-bold text-emerald-400">00:00:00</span>
+                        <span id="timer-work" class="text-2xl font-mono font-bold text-emerald-400">00:00:00</span>
+                    </div>
+                    <div class="h-8 w-px bg-slate-700"></div>
+                    <div class="text-center">
+                        <span class="text-xs text-slate-400 block mb-1">Total Break</span>
+                        <span id="timer-break-total" class="text-2xl font-mono font-bold text-rose-400">00:00:00</span>
                     </div>
                     <div class="h-8 w-px bg-slate-700"></div>
                     <div class="text-center">
                         <span class="text-xs text-slate-400 block mb-1">Break Countdown</span>
-                        <span id="timer-break" class="text-3xl font-mono font-bold text-amber-400">00:00:00</span>
+                        <span id="timer-break-countdown" class="text-2xl font-mono font-bold text-amber-400">00:00:00</span>
                     </div>
                 </div>
             </div>
@@ -118,19 +123,19 @@
                 </button>
 
                 <!-- Back to Seat Button -->
-                <button onclick="setBreakStatus('Working')" class="bg-indigo-600/30 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/40 p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition">
+                <button id="btn-back-seat" onclick="setBreakStatus('Working')" class="bg-indigo-600/30 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/40 p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition">
                     <i class="fa-solid fa-chair text-2xl text-indigo-400"></i>
                     <span class="font-bold text-sm">Back to Seat</span>
                 </button>
 
                 <!-- Smoke / Toilet Break (15 Mins) -->
-                <button onclick="setBreakStatus('Smoke / Toilet Break')" class="bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition">
+                <button id="btn-break-smoke" onclick="setBreakStatus('Smoke / Toilet Break')" class="bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition">
                     <i class="fa-solid fa-restroom text-2xl text-amber-400"></i>
                     <span class="font-semibold text-sm">Smoke / Toilet (15m)</span>
                 </button>
 
                 <!-- Eat Break (1 Hour) -->
-                <button onclick="setBreakStatus('Eat Break')" class="bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition">
+                <button id="btn-break-eat" onclick="setBreakStatus('Eat Break')" class="bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition">
                     <i class="fa-solid fa-utensils text-2xl text-sky-400"></i>
                     <span class="font-semibold text-sm">Eat Break (1 Hr)</span>
                 </button>
@@ -332,7 +337,12 @@
 
         function toggleWorkStatus() {
             let state = getUserState();
-            if (state.status === 'Working' || state.status.includes('Break')) {
+            if (state.status.includes('Break')) {
+                alert("Please click 'Back to Seat' first before ending your shift!");
+                return;
+            }
+
+            if (state.status === 'Working') {
                 // Off Work
                 if (state.lastStartTimestamp) {
                     let elapsed = Math.floor((Date.now() - state.lastStartTimestamp) / 1000);
@@ -343,11 +353,12 @@
                 state.isWorking = false;
                 state.breakEnd = null;
             } else {
-                // Working
+                // Start Working
                 state.status = 'Working';
                 state.isWorking = true;
                 state.breakEnd = null;
                 if (!state.accumulatedSec) state.accumulatedSec = 0;
+                if (!state.totalBreakSec) state.totalBreakSec = 0;
                 state.lastStartTimestamp = Date.now();
             }
             saveAndSyncState(state);
@@ -355,24 +366,39 @@
 
         function setBreakStatus(type) {
             let state = getUserState();
+
+            // If not working at all, block break
             if (!state.isWorking && type !== 'Working') {
                 alert("Please start work first before taking a break!");
                 return;
             }
 
+            // Prevent tapping break button if ALREADY in a break
+            if (state.status.includes('Break') && type !== 'Working') {
+                alert("You are already in a break! Click 'Back to Seat' to resume work first.");
+                return;
+            }
+
             if (type === 'Working') {
                 // Resume Work (Back to Seat)
+                if (state.lastBreakStartTimestamp) {
+                    let breakElapsed = Math.floor((Date.now() - state.lastBreakStartTimestamp) / 1000);
+                    state.totalBreakSec = (state.totalBreakSec || 0) + breakElapsed;
+                    state.lastBreakStartTimestamp = null;
+                }
                 state.status = 'Working';
                 state.breakEnd = null;
                 state.lastStartTimestamp = Date.now();
             } else {
-                // Pause shift timer & calculate worked time up to break start
+                // Pause shift timer & start break
                 if (state.lastStartTimestamp) {
                     let elapsed = Math.floor((Date.now() - state.lastStartTimestamp) / 1000);
                     state.accumulatedSec = (state.accumulatedSec || 0) + elapsed;
                     state.lastStartTimestamp = null;
                 }
                 state.status = type;
+                state.lastBreakStartTimestamp = Date.now();
+
                 if (type === 'Smoke / Toilet Break') {
                     state.breakEnd = Date.now() + (15 * 60 * 1000);
                 } else if (type === 'Eat Break') {
@@ -387,7 +413,9 @@
                 status: 'Off Work',
                 isWorking: false,
                 accumulatedSec: 0,
+                totalBreakSec: 0,
                 lastStartTimestamp: null,
+                lastBreakStartTimestamp: null,
                 breakEnd: null
             };
         }
@@ -426,6 +454,11 @@
             const iconToggle = document.getElementById('icon-toggle-work');
             const textToggle = document.getElementById('text-toggle-work');
 
+            const btnSmoke = document.getElementById('btn-break-smoke');
+            const btnEat = document.getElementById('btn-break-eat');
+            const btnBackSeat = document.getElementById('btn-back-seat');
+
+            // Button state styling & disabling logic
             if (state.status === 'Working' || state.status.includes('Break')) {
                 btnToggle.className = "bg-rose-600 hover:bg-rose-500 text-white p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition shadow-lg";
                 iconToggle.className = "fa-solid fa-power-off text-2xl";
@@ -434,6 +467,17 @@
                 btnToggle.className = "bg-emerald-600 hover:bg-emerald-500 text-white p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition shadow-lg";
                 iconToggle.className = "fa-solid fa-play text-2xl";
                 textToggle.innerText = "Start Work";
+            }
+
+            if (state.status.includes('Break')) {
+                btnSmoke.classList.add('opacity-40', 'cursor-not-allowed');
+                btnEat.classList.add('opacity-40', 'cursor-not-allowed');
+                btnBackSeat.classList.remove('opacity-50');
+                btnBackSeat.classList.add('ring-2', 'ring-indigo-400', 'animate-pulse');
+            } else {
+                btnSmoke.classList.remove('opacity-40', 'cursor-not-allowed');
+                btnEat.classList.remove('opacity-40', 'cursor-not-allowed');
+                btnBackSeat.classList.remove('ring-2', 'ring-indigo-400', 'animate-pulse');
             }
 
             clearInterval(workInterval);
@@ -449,6 +493,16 @@
                 const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
                 const s = String(totalSec % 60).padStart(2, '0');
                 document.getElementById('timer-work').innerText = `${h}:${m}:${s}`;
+
+                // Total Break Time Count
+                let currentBreakSec = state.totalBreakSec || 0;
+                if (state.status.includes('Break') && state.lastBreakStartTimestamp) {
+                    currentBreakSec += Math.floor((Date.now() - state.lastBreakStartTimestamp) / 1000);
+                }
+                const bh = String(Math.floor(currentBreakSec / 3600)).padStart(2, '0');
+                const bm = String(Math.floor((currentBreakSec % 3600) / 60)).padStart(2, '0');
+                const bs = String(currentBreakSec % 60).padStart(2, '0');
+                document.getElementById('timer-break-total').innerText = `${bh}:${bm}:${bs}`;
             }, 1000);
 
             // Break Countdown Timer
@@ -457,9 +511,9 @@
                     const diff = Math.max(0, Math.floor((state.breakEnd - Date.now()) / 1000));
                     const m = String(Math.floor(diff / 60)).padStart(2, '0');
                     const s = String(diff % 60).padStart(2, '0');
-                    document.getElementById('timer-break').innerText = `00:${m}:${s}`;
+                    document.getElementById('timer-break-countdown').innerText = `00:${m}:${s}`;
                 } else {
-                    document.getElementById('timer-break').innerText = "00:00:00";
+                    document.getElementById('timer-break-countdown').innerText = "00:00:00";
                 }
             }, 1000);
         }
