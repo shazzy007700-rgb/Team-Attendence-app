@@ -1,1278 +1,476 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Team Pulse - Cloud Attendance & Time Tracker</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Inter', 'sans-serif'] },
-          colors: {
-            brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0284c7', 600: '#0369a1', 700: '#075985' }
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #0f172a; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #475569; }
-    .pulse-dot { animation: pulse 2s infinite; }
-    @keyframes pulse {
-      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-      70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
-      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Pulse - Attendance & Time Tracker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+    </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+<body class="bg-slate-900 text-slate-100 min-h-screen pb-12">
 
-  <!-- Header Navigation -->
-  <header class="bg-slate-800/90 backdrop-blur border-b border-slate-700/80 sticky top-0 z-30 px-4 py-3 shadow-lg">
-    <div class="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="p-2.5 bg-brand-600 rounded-xl text-white shadow-md shadow-brand-500/20">
-            <i class="fa-solid fa-cloud-bolt text-xl"></i>
-          </div>
-          <div>
-            <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-              TeamPulse Cloud
-              <span id="cloudSyncBadge" class="text-xs font-normal px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 border border-slate-600">Local Mode</span>
-            </h1>
-            <p class="text-xs text-slate-400">Remote Attendance & Live Shift Tracker</p>
-          </div>
-        </div>
-
-        <div id="mobileUserBadge" class="flex lg:hidden items-center gap-2"></div>
-      </div>
-
-      <!-- Real-time Clocks Grid -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-        <div class="bg-slate-900/90 border border-slate-700/60 rounded-lg p-2 flex flex-col items-center">
-          <div class="flex items-center gap-1 text-slate-400 font-medium"><span>🇬🇧</span> UK (GMT/BST)</div>
-          <span id="clockUK" class="text-xs sm:text-sm font-mono font-bold text-slate-100 mt-0.5">00:00:00</span>
-        </div>
-        <div class="bg-slate-900/90 border border-slate-700/60 rounded-lg p-2 flex flex-col items-center">
-          <div class="flex items-center gap-1 text-slate-400 font-medium"><span>🇧🇩</span> Bangladesh</div>
-          <span id="clockBD" class="text-xs sm:text-sm font-mono font-bold text-amber-400 mt-0.5">00:00:00</span>
-        </div>
-        <div class="bg-slate-900/90 border border-slate-700/60 rounded-lg p-2 flex flex-col items-center">
-          <div class="flex items-center gap-1 text-slate-400 font-medium"><span>🇪🇺</span> Europe (CET)</div>
-          <span id="clockEU" class="text-xs sm:text-sm font-mono font-bold text-slate-100 mt-0.5">00:00:00</span>
-        </div>
-        <div class="bg-slate-900/90 border border-slate-700/60 rounded-lg p-2 flex flex-col items-center">
-          <div class="flex items-center gap-1 text-slate-400 font-medium"><span>📍</span> Local Time</div>
-          <span id="clockLocal" class="text-xs sm:text-sm font-mono font-bold text-cyan-400 mt-0.5">00:00:00</span>
-        </div>
-      </div>
-
-      <div id="desktopUserBadge" class="hidden lg:flex items-center gap-3"></div>
-    </div>
-  </header>
-
-  <!-- Main View Area -->
-  <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 flex flex-col">
-
-    <!-- LOGIN VIEW -->
-    <div id="loginView" class="flex-1 flex items-center justify-center py-10">
-      <div class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl p-6 sm:p-8">
-        <div class="text-center mb-6">
-          <div class="w-16 h-16 bg-brand-500/10 text-brand-400 border border-brand-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3">
-            <i class="fa-solid fa-users-rectangle text-2xl"></i>
-          </div>
-          <h2 class="text-2xl font-bold text-white">Remote Portal</h2>
-          <p class="text-sm text-slate-400 mt-1">Sign in to track hours & breaks</p>
-        </div>
-
-        <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Username</label>
-            <div class="relative">
-              <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                <i class="fa-solid fa-user text-sm"></i>
-              </span>
-              <input type="text" id="loginUsername" required class="w-full bg-slate-900/80 border border-slate-700 rounded-lg pl-9 pr-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500" placeholder="Enter username">
+    <!-- Top Navigation & Clocks -->
+    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-40 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 p-2 rounded-lg text-white"><i class="fa-solid fa-clock-rotate-left text-xl"></i></div>
+                <div>
+                    <h1 class="font-bold text-lg text-white leading-tight">Team Pulse</h1>
+                    <p class="text-xs text-slate-400">Multi-Region Attendance Tracker</p>
+                </div>
             </div>
-          </div>
 
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Password</label>
-            <div class="relative">
-              <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                <i class="fa-solid fa-lock text-sm"></i>
-              </span>
-              <input type="password" id="loginPassword" required class="w-full bg-slate-900/80 border border-slate-700 rounded-lg pl-9 pr-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500" placeholder="Enter password">
+            <!-- World Clocks Bar -->
+            <div class="flex flex-wrap items-center gap-3 text-xs">
+                <div class="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700">
+                    <span class="text-slate-400">UK (GMT/BST):</span>
+                    <span id="clock-uk" class="font-mono font-bold text-emerald-400 ml-1">00:00:00</span>
+                </div>
+                <div class="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700">
+                    <span class="text-slate-400">Europe (CET):</span>
+                    <span id="clock-eu" class="font-mono font-bold text-sky-400 ml-1">00:00:00</span>
+                </div>
+                <div class="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700">
+                    <span class="text-slate-400">BD (BST):</span>
+                    <span id="clock-bd" class="font-mono font-bold text-amber-400 ml-1">00:00:00</span>
+                </div>
             </div>
-          </div>
 
-          <div id="loginError" class="hidden text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg flex items-center gap-2">
-            <i class="fa-solid fa-circle-exclamation"></i>
-            <span id="loginErrorText">Invalid credentials</span>
-          </div>
-
-          <button type="submit" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-2.5 rounded-lg transition-all shadow-lg shadow-brand-600/30 active:scale-[0.99] flex items-center justify-center gap-2">
-            <span>Sign In to Dashboard</span>
-            <i class="fa-solid fa-arrow-right text-xs"></i>
-          </button>
-        </form>
-
-        <div class="mt-6 pt-6 border-t border-slate-700/60">
-          <p class="text-xs text-slate-400 font-medium mb-2">Quick Credentials (Click to load):</p>
-          <div class="grid grid-cols-2 gap-2 text-xs">
-            <button onclick="fillLogin('admin', 'admin123')" class="bg-slate-900/60 hover:bg-slate-900 border border-slate-700 rounded p-2 text-left transition text-slate-300">
-              <div class="font-semibold text-brand-400">👑 Admin</div>
-              <div class="text-[11px] text-slate-400">admin / admin123</div>
-            </button>
-            <button onclick="fillLogin('john', 'password123')" class="bg-slate-900/60 hover:bg-slate-900 border border-slate-700 rounded p-2 text-left transition text-slate-300">
-              <div class="font-semibold text-emerald-400">👤 Employee</div>
-              <div class="text-[11px] text-slate-400">john / password123</div>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- EMPLOYEE DASHBOARD VIEW -->
-    <div id="employeeDashboard" class="hidden space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
-          <div>
-            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Current Status</span>
-            <div class="flex items-center gap-3 mt-3">
-              <span id="empStatusDot" class="w-4 h-4 rounded-full bg-slate-500 inline-block"></span>
-              <h3 id="empStatusText" class="text-2xl font-bold text-white">Off Work</h3>
+            <!-- Auth Controls -->
+            <div id="user-header-status" class="flex items-center gap-3">
+                <!-- Injected via JS -->
             </div>
-          </div>
-          <p id="empSubStatus" class="text-xs text-slate-400 mt-4 border-t border-slate-700/50 pt-3">
-            Press "Start Work" to begin your shift timer.
-          </p>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 pt-6">
+
+        <!-- LOGIN VIEW -->
+        <div id="view-login" class="max-w-md mx-auto my-12 bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl">
+            <div class="text-center mb-6">
+                <i class="fa-solid fa-user-lock text-4xl text-indigo-400 mb-2"></i>
+                <h2 class="text-2xl font-bold text-white">Sign In to Workspace</h2>
+                <p class="text-sm text-slate-400">Enter your employee or admin credentials</p>
+            </div>
+            
+            <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Username</label>
+                    <input type="text" id="login-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500" placeholder="e.g. admin or employee1">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Password</label>
+                    <input type="password" id="login-password" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-lg transition shadow-lg shadow-indigo-600/30">
+                    Log In
+                </button>
+            </form>
+
+            <div class="mt-6 pt-4 border-t border-slate-700/60 text-xs text-center text-slate-400">
+                <p>Default Admin: <span class="text-indigo-400 font-mono">admin</span> / <span class="text-indigo-400 font-mono">admin</span></p>
+            </div>
         </div>
 
-        <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Active Shift Duration</span>
-            <i class="fa-solid fa-stopwatch text-brand-400"></i>
-          </div>
-          <div class="my-3 text-center">
-            <span id="workTimer" class="text-4xl sm:text-5xl font-mono font-bold tracking-tight text-white">00:00:00</span>
-          </div>
-          <div class="text-xs text-slate-400 flex justify-between border-t border-slate-700/50 pt-3">
-            <span>Started: <strong id="shiftStartTime" class="text-slate-200">--:--</strong></span>
-            <span>Target: <strong id="shiftEstEnd" class="text-slate-200">8 Hours</strong></span>
-          </div>
+        <!-- DASHBOARD VIEW (EMPLOYEE) -->
+        <div id="view-dashboard" class="hidden space-y-6">
+            <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+                <div>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-indigo-400">Employee Portal</span>
+                    <h2 id="dash-user-name" class="text-2xl font-bold text-white">Welcome!</h2>
+                    <p class="text-slate-400 text-sm">Status: <span id="dash-status-badge" class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-700 text-slate-300">Off Work</span></p>
+                </div>
+
+                <!-- Timer Displays -->
+                <div class="flex items-center gap-6 bg-slate-900/60 p-4 rounded-xl border border-slate-700">
+                    <div class="text-center">
+                        <span class="text-xs text-slate-400 block mb-1">Shift Duration</span>
+                        <span id="timer-work" class="text-3xl font-mono font-bold text-emerald-400">00:00:00</span>
+                    </div>
+                    <div class="h-8 w-px bg-slate-700"></div>
+                    <div class="text-center">
+                        <span class="text-xs text-slate-400 block mb-1">Break Countdown</span>
+                        <span id="timer-break" class="text-3xl font-mono font-bold text-amber-400">00:00:00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                <button onclick="setEmployeeStatus('Working')" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-briefcase text-2xl"></i>
+                    <span class="font-semibold text-sm">Start Work</span>
+                </button>
+                <button onclick="setEmployeeStatus('Toilet Break')" class="bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-restroom text-2xl"></i>
+                    <span class="font-semibold text-sm">Toilet (15m)</span>
+                </button>
+                <button onclick="setEmployeeStatus('Smoke Break')" class="bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border border-orange-500/30 p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-smoking text-2xl"></i>
+                    <span class="font-semibold text-sm">Smoke (15m)</span>
+                </button>
+                <button onclick="setEmployeeStatus('Eat Break')" class="bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-utensils text-2xl"></i>
+                    <span class="font-semibold text-sm">Eat (1 Hr)</span>
+                </button>
+                <button onclick="setEmployeeStatus('Off Work')" class="bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition col-span-2 sm:col-span-1">
+                    <i class="fa-solid fa-power-off text-2xl"></i>
+                    <span class="font-semibold text-sm">Off Work</span>
+                </button>
+            </div>
         </div>
 
-        <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Break Countdown</span>
-            <i class="fa-solid fa-mug-hot text-amber-400"></i>
-          </div>
-          <div class="my-3 text-center">
-            <span id="breakTimer" class="text-3xl sm:text-4xl font-mono font-bold text-slate-500">00:00</span>
-            <p id="breakTimerLabel" class="text-xs text-slate-400 mt-1">No active break</p>
-          </div>
-          <div class="text-xs text-slate-400 border-t border-slate-700/50 pt-3 flex justify-between">
-            <span>Total Break Used:</span>
-            <strong id="totalBreakUsed" class="text-slate-200">0 min</strong>
-          </div>
-        </div>
-      </div>
+        <!-- ADMIN PANEL VIEW -->
+        <div id="view-admin" class="hidden space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Admin Control Panel</h2>
+                    <p class="text-slate-400 text-sm">Real-time team overview & credential management</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="openUserModal()" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+                        <i class="fa-solid fa-user-plus"></i> Add User
+                    </button>
+                    <button onclick="openFirebaseConfigModal()" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+                        <i class="fa-solid fa-gear"></i> Firebase Config
+                    </button>
+                </div>
+            </div>
 
-      <!-- Action Panel -->
-      <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-6 shadow-xl">
-        <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-300 mb-4 flex items-center gap-2">
-          <i class="fa-solid fa-gamepad text-brand-400"></i> Shift & Break Controls
-        </h3>
+            <!-- Team Live Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="admin-team-grid">
+                <!-- Injected via JS -->
+            </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <button id="btnWorkShift" onclick="toggleWorkShift()" class="sm:col-span-2 lg:col-span-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold p-4 rounded-xl shadow-lg shadow-emerald-900/30 transition-all flex flex-col items-center justify-center gap-2 active:scale-[0.98]">
-            <i id="btnWorkIcon" class="fa-solid fa-play text-2xl"></i>
-            <span id="btnWorkText" class="text-sm">Start Work</span>
-          </button>
-
-          <button id="btnToilet" onclick="triggerBreak('toilet', 15)" disabled class="bg-slate-700/50 text-slate-400 border border-slate-600/50 font-medium p-4 rounded-xl transition-all flex flex-col items-center justify-center gap-1.5 hover:bg-slate-700 hover:text-white disabled:opacity-40">
-            <i class="fa-solid fa-restroom text-xl text-cyan-400"></i>
-            <span class="text-sm font-semibold text-slate-200">Toilet Break</span>
-            <span class="text-[11px] text-slate-400">15 min timer</span>
-          </button>
-
-          <button id="btnSmoke" onclick="triggerBreak('smoke', 15)" disabled class="bg-slate-700/50 text-slate-400 border border-slate-600/50 font-medium p-4 rounded-xl transition-all flex flex-col items-center justify-center gap-1.5 hover:bg-slate-700 hover:text-white disabled:opacity-40">
-            <i class="fa-solid fa-smoking text-xl text-slate-300"></i>
-            <span class="text-sm font-semibold text-slate-200">Smoke Break</span>
-            <span class="text-[11px] text-slate-400">15 min timer</span>
-          </button>
-
-          <button id="btnMeal" onclick="triggerBreak('meal', 60)" disabled class="bg-slate-700/50 text-slate-400 border border-slate-600/50 font-medium p-4 rounded-xl transition-all flex flex-col items-center justify-center gap-1.5 hover:bg-slate-700 hover:text-white disabled:opacity-40">
-            <i class="fa-solid fa-utensils text-xl text-amber-400"></i>
-            <span class="text-sm font-semibold text-slate-200">Eat Break</span>
-            <span class="text-[11px] text-slate-400">1 hour (60 min)</span>
-          </button>
-
-          <button id="btnEndBreak" onclick="endBreak()" disabled class="bg-amber-600/20 text-amber-400 border border-amber-500/30 font-medium p-4 rounded-xl transition-all flex flex-col items-center justify-center gap-1.5 hover:bg-amber-600 hover:text-white disabled:opacity-30">
-            <i class="fa-solid fa-circle-check text-xl"></i>
-            <span class="text-sm font-semibold">End Break</span>
-            <span class="text-[11px]">Return to Work</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Activity Table -->
-      <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-6 shadow-xl">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-            <i class="fa-solid fa-list-check text-brand-400"></i> Shift Activity Log
-          </h3>
-          <span class="text-xs text-slate-400" id="activityCount">0 events today</span>
+            <!-- User Accounts Manager -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 mt-8">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-users-gear text-indigo-400"></i> Manage Team Accounts
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="text-xs uppercase bg-slate-900/60 text-slate-400">
+                            <tr>
+                                <th class="px-4 py-3">Username</th>
+                                <th class="px-4 py-3">Role</th>
+                                <th class="px-4 py-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="user-accounts-list" class="divide-y divide-slate-700/50">
+                            <!-- Injected via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs text-slate-300">
-            <thead class="bg-slate-900/80 text-slate-400 uppercase font-medium">
-              <tr>
-                <th class="p-3 rounded-l-lg">Time</th>
-                <th class="p-3">Event Type</th>
-                <th class="p-3">Details</th>
-              </tr>
-            </thead>
-            <tbody id="employeeLogTable" class="divide-y divide-slate-700/50">
-              <tr><td colspan="3" class="p-4 text-center text-slate-500 italic">No activity recorded today yet.</td></tr>
-            </tbody>
-          </table>
+    </main>
+
+    <!-- USER MODAL -->
+    <div id="modal-user" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 class="text-xl font-bold text-white mb-4" id="modal-user-title">Add New Team Member</h3>
+            <form onsubmit="saveUserAccount(event)" class="space-y-4">
+                <input type="hidden" id="edit-user-original-id">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Username</label>
+                    <input type="text" id="modal-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Password</label>
+                    <input type="password" id="modal-password" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Role</label>
+                    <select id="modal-role" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white">
+                        <option value="employee">Employee</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-700">
+                    <button type="button" onclick="closeUserModal()" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm">Cancel</button>
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold">Save Account</button>
+                </div>
+            </form>
         </div>
-      </div>
     </div>
 
-    <!-- ADMIN DASHBOARD VIEW -->
-    <div id="adminPanel" class="hidden space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-700/80 pb-4">
-        <div>
-          <h2 class="text-xl font-bold text-white flex items-center gap-2">
-            <i class="fa-solid fa-user-gear text-brand-400"></i> Admin Command Hub
-          </h2>
-          <p class="text-xs text-slate-400">Manage remote workers, view real-time logs, and export reports</p>
+    <!-- FIREBASE SETUP MODAL -->
+    <div id="modal-firebase" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 class="text-xl font-bold text-white mb-2">Firebase Cloud Sync</h3>
+            <p class="text-xs text-slate-400 mb-4">Input your Firebase credentials to enable live multi-device synchronization across remote team members.</p>
+            <form onsubmit="saveFirebaseConfig(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs uppercase text-slate-400 mb-1">API Key</label>
+                    <input type="text" id="fb-apiKey" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-white">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase text-slate-400 mb-1">Auth Domain</label>
+                    <input type="text" id="fb-authDomain" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-white">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase text-slate-400 mb-1">Project ID</label>
+                    <input type="text" id="fb-projectId" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-white">
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-700">
+                    <button type="button" onclick="closeFirebaseModal()" class="px-4 py-2 rounded bg-slate-700 text-xs">Close</button>
+                    <button type="submit" class="px-4 py-2 rounded bg-indigo-600 text-xs font-semibold">Save & Sync</button>
+                </div>
+            </form>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <button onclick="switchAdminTab('overview')" id="tabBtnOverview" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand-600 text-white">
-            Team Live Overview
-          </button>
-          <button onclick="switchAdminTab('logs')" id="tabBtnLogs" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 text-slate-300">
-            Attendance Logs
-          </button>
-          <button onclick="switchAdminTab('users')" id="tabBtnUsers" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 text-slate-300">
-            User Accounts
-          </button>
-          <button onclick="openConfigModal()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow">
-            <i class="fa-solid fa-cloud"></i> Firebase Config
-          </button>
-        </div>
-      </div>
-
-      <!-- Admin Overview Tab -->
-      <div id="adminTabOverview" class="space-y-6">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center justify-between">
-            <div>
-              <p class="text-xs text-slate-400 font-medium">Currently Working</p>
-              <h4 id="statWorking" class="text-2xl font-bold text-emerald-400 mt-1">0</h4>
-            </div>
-            <div class="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-lg">
-              <i class="fa-solid fa-briefcase"></i>
-            </div>
-          </div>
-          <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center justify-between">
-            <div>
-              <p class="text-xs text-slate-400 font-medium">On Break</p>
-              <h4 id="statBreak" class="text-2xl font-bold text-amber-400 mt-1">0</h4>
-            </div>
-            <div class="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-lg">
-              <i class="fa-solid fa-coffee"></i>
-            </div>
-          </div>
-          <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center justify-between">
-            <div>
-              <p class="text-xs text-slate-400 font-medium">Off Duty</p>
-              <h4 id="statOff" class="text-2xl font-bold text-slate-400 mt-1">0</h4>
-            </div>
-            <div class="w-10 h-10 rounded-lg bg-slate-700/30 text-slate-400 flex items-center justify-center text-lg">
-              <i class="fa-solid fa-power-off"></i>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-6 shadow-xl">
-          <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-300 mb-4">Live Remote Team Roster</h3>
-          <div id="adminTeamGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <!-- Dynamic Grid Cards -->
-          </div>
-        </div>
-      </div>
-
-      <!-- Admin Logs Tab -->
-      <div id="adminTabLogs" class="hidden space-y-6">
-        <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-6 shadow-xl">
-          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-            <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-300">Remote Employee Logs</h3>
-            <div class="flex items-center gap-3 w-full sm:w-auto">
-              <button onclick="exportToCSV()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5">
-                <i class="fa-solid fa-file-excel"></i> Export CSV
-              </button>
-              <button onclick="openManualLogModal()" class="bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold px-3 py-2 rounded-lg">
-                <i class="fa-solid fa-pen-to-square"></i> Manual Override
-              </button>
-            </div>
-          </div>
-
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs text-slate-300">
-              <thead class="bg-slate-900/80 text-slate-400 uppercase font-medium">
-                <tr>
-                  <th class="p-3 rounded-l-lg">Employee</th>
-                  <th class="p-3">Work Hours</th>
-                  <th class="p-3">Break Duration</th>
-                  <th class="p-3">Live Status</th>
-                  <th class="p-3 text-right rounded-r-lg">Action</th>
-                </tr>
-              </thead>
-              <tbody id="adminLogsTable" class="divide-y divide-slate-700/50">
-                <!-- Log entries -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Admin Users Tab -->
-      <div id="adminTabUsers" class="hidden space-y-6">
-        <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-6 shadow-xl">
-          <div class="flex items-center justify-between mb-6">
-            <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-300">User Accounts & Credentials</h3>
-            <button onclick="openUserModal()" class="bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5">
-              <i class="fa-solid fa-user-plus"></i> Add New Employee
-            </button>
-          </div>
-
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs text-slate-300">
-              <thead class="bg-slate-900/80 text-slate-400 uppercase font-medium">
-                <tr>
-                  <th class="p-3 rounded-l-lg">Name</th>
-                  <th class="p-3">Username</th>
-                  <th class="p-3">Role</th>
-                  <th class="p-3">Password</th>
-                  <th class="p-3 text-right rounded-r-lg">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="adminUsersTable" class="divide-y divide-slate-700/50">
-                <!-- Users rows -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
     </div>
 
-  </main>
+    <!-- APP SCRIPT -->
+    <script>
+        // State
+        let currentUser = null;
+        let db = null;
+        let workInterval = null;
+        let breakInterval = null;
 
-  <!-- MODALS -->
+        // Default local users fallback
+        let users = JSON.parse(localStorage.getItem('tp_users')) || [
+            { id: 'admin', username: 'admin', password: 'admin', role: 'admin' },
+            { id: 'emp1', username: 'employee1', password: '123', role: 'employee' }
+        ];
 
-  <!-- Firebase Setup Modal -->
-  <div id="configModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl">
-      <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
-        <h3 class="text-base font-bold text-white flex items-center gap-2">
-          <i class="fa-solid fa-fire text-amber-500"></i> Firebase Live Sync Setup
-        </h3>
-        <button onclick="closeConfigModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
-      </div>
-
-      <p class="text-xs text-slate-300 mb-4">
-        Paste your Firebase Web App configuration credentials to enable instant multi-device live synchronization.
-      </p>
-
-      <form id="firebaseConfigForm" onsubmit="saveFirebaseConfig(event)" class="space-y-3 text-xs">
-        <div>
-          <label class="block font-medium text-slate-300 mb-1">API Key</label>
-          <input type="text" id="cfgApiKey" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white font-mono">
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block font-medium text-slate-300 mb-1">Auth Domain</label>
-            <input type="text" id="cfgAuthDomain" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white font-mono">
-          </div>
-          <div>
-            <label class="block font-medium text-slate-300 mb-1">Project ID</label>
-            <input type="text" id="cfgProjectId" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white font-mono">
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block font-medium text-slate-300 mb-1">Storage Bucket</label>
-            <input type="text" id="cfgStorageBucket" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white font-mono">
-          </div>
-          <div>
-            <label class="block font-medium text-slate-300 mb-1">App ID</label>
-            <input type="text" id="cfgAppId" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white font-mono">
-          </div>
-        </div>
-
-        <div class="flex justify-between items-center pt-4 border-t border-slate-700">
-          <button type="button" onclick="clearFirebaseConfig()" class="text-rose-400 hover:underline text-xs">
-            Disconnect Cloud
-          </button>
-          <div class="flex gap-2">
-            <button type="button" onclick="closeConfigModal()" class="px-3 py-1.5 bg-slate-700 text-slate-300 rounded hover:bg-slate-600">Cancel</button>
-            <button type="submit" class="px-4 py-1.5 bg-brand-600 text-white rounded font-semibold hover:bg-brand-500">Save & Connect</button>
-          </div>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- User Edit Modal -->
-  <div id="userModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
-      <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
-        <h3 id="userModalTitle" class="text-base font-bold text-white">Manage User Account</h3>
-        <button onclick="closeUserModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
-      </div>
-
-      <form id="userForm" onsubmit="saveUser(event)" class="space-y-4">
-        <input type="hidden" id="editUserId">
-        <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Full Name</label>
-          <input type="text" id="modalFullName" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Username</label>
-          <input type="text" id="modalUsername" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Password</label>
-          <input type="text" id="modalPassword" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Role</label>
-          <select id="modalRole" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
-            <option value="employee">Employee</option>
-            <option value="admin">Administrator</option>
-          </select>
-        </div>
-
-        <div class="flex justify-end gap-2 pt-4 border-t border-slate-700">
-          <button type="button" onclick="closeUserModal()" class="px-4 py-2 bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg">Cancel</button>
-          <button type="submit" class="px-4 py-2 bg-brand-600 text-white text-xs font-semibold rounded-lg">Save Account</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Manual Log Override Modal -->
-  <div id="logOverrideModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
-      <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
-        <h3 class="text-base font-bold text-white">Override Attendance Record</h3>
-        <button onclick="closeLogModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
-      </div>
-
-      <form id="logOverrideForm" onsubmit="saveLogOverride(event)" class="space-y-4">
-        <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Select Employee</label>
-          <select id="logUserSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white"></select>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Total Work Duration (Minutes)</label>
-          <input type="number" id="logWorkMinutes" required min="0" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Total Break Duration (Minutes)</label>
-          <input type="number" id="logBreakMinutes" required min="0" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
-        </div>
-
-        <div class="flex justify-end gap-2 pt-4 border-t border-slate-700">
-          <button type="button" onclick="closeLogModal()" class="px-4 py-2 bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg">Cancel</button>
-          <button type="submit" class="px-4 py-2 bg-brand-600 text-white text-xs font-semibold rounded-lg">Save Changes</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Toast Notification -->
-  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 text-white px-4 py-3 rounded-xl border border-slate-700 shadow-2xl flex items-center gap-3">
-    <div id="toastIcon" class="text-brand-400 text-lg"><i class="fa-solid fa-circle-info"></i></div>
-    <div id="toastMessage" class="text-xs font-medium">Notification</div>
-  </div>
-
-  <!-- FIREBASE & CORE JAVASCRIPT LOGIC -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    // Global scope attachment for inline event handlers
-    window.db = null;
-    window.auth = null;
-    window.isFirebaseConnected = false;
-
-    const DEFAULT_APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'teampulse-attendance-app';
-
-    // Seed Data
-    const DEFAULT_USERS = [
-      { id: 'usr_admin', name: 'System Admin', username: 'admin', password: 'admin123', role: 'admin' },
-      { id: 'usr_john', name: 'John Doe', username: 'john', password: 'password123', role: 'employee' },
-      { id: 'usr_sarah', name: 'Sarah Smith', username: 'sarah', password: 'password123', role: 'employee' }
-    ];
-
-    window.users = [];
-    window.sessions = {};
-    window.currentUser = null;
-    window.audioAlertPlayed = false;
-
-    // Load Local Storage Fallback
-    function loadLocalState() {
-      const storedUsers = localStorage.getItem('teampulse_users');
-      window.users = storedUsers ? JSON.parse(storedUsers) : DEFAULT_USERS;
-
-      const storedSessions = localStorage.getItem('teampulse_sessions');
-      window.sessions = storedSessions ? JSON.parse(storedSessions) : {};
-
-      const savedCurrUser = localStorage.getItem('teampulse_current_user');
-      window.currentUser = savedCurrUser ? JSON.parse(savedCurrUser) : null;
-    }
-
-    window.saveLocalState = function() {
-      localStorage.setItem('teampulse_users', JSON.stringify(window.users));
-      localStorage.setItem('teampulse_sessions', JSON.stringify(window.sessions));
-      if (window.currentUser) {
-        localStorage.setItem('teampulse_current_user', JSON.stringify(window.currentUser));
-      } else {
-        localStorage.removeItem('teampulse_current_user');
-      }
-    };
-
-    // Firebase Initialization logic
-    async function initFirebase() {
-      let firebaseConfig = null;
-      const savedConfig = localStorage.getItem('teampulse_firebase_cfg');
-
-      if (savedConfig) {
-        try { firebaseConfig = JSON.parse(savedConfig); } catch(e){}
-      } else if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-        try { firebaseConfig = JSON.parse(__firebase_config); } catch(e){}
-      }
-
-      if (firebaseConfig && firebaseConfig.apiKey) {
-        try {
-          const app = initializeApp(firebaseConfig);
-          window.db = getFirestore(app);
-          window.auth = getAuth(app);
-
-          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-            await signInWithCustomToken(window.auth, __initial_auth_token);
-          } else {
-            await signInAnonymously(window.auth);
-          }
-
-          window.isFirebaseConnected = true;
-          document.getElementById('cloudSyncBadge').textContent = 'Live Cloud Sync';
-          document.getElementById('cloudSyncBadge').className = 'text-xs font-normal px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-
-          setupFirestoreListeners();
-        } catch (err) {
-          console.warn("Firebase config error, reverting to local mode:", err);
-          window.isFirebaseConnected = false;
-        }
-      }
-    }
-
-    function setupFirestoreListeners() {
-      if (!window.db) return;
-
-      // Listen to Public Users collection
-      const usersColRef = collection(window.db, 'artifacts', DEFAULT_APP_ID, 'public', 'data', 'users');
-      onSnapshot(usersColRef, (snapshot) => {
-        if (!snapshot.empty) {
-          const fetchedUsers = [];
-          snapshot.forEach(docSnap => fetchedUsers.push(docSnap.data()));
-          window.users = fetchedUsers;
-        } else {
-          // Seed Firestore users
-          DEFAULT_USERS.forEach(u => {
-            setDoc(doc(window.db, 'artifacts', DEFAULT_APP_ID, 'public', 'data', 'users', u.id), u);
-          });
-        }
-        window.renderApp();
-      }, (err) => console.error("Users listener error", err));
-
-      // Listen to Public Sessions collection
-      const sessionsColRef = collection(window.db, 'artifacts', DEFAULT_APP_ID, 'public', 'data', 'sessions');
-      onSnapshot(sessionsColRef, (snapshot) => {
-        snapshot.forEach(docSnap => {
-          window.sessions[docSnap.id] = docSnap.data();
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            initClocks();
+            initFirebase();
+            checkSession();
         });
-        window.renderApp();
-      }, (err) => console.error("Sessions listener error", err));
-    }
 
-    window.syncSessionToCloud = async function(userId) {
-      if (!window.isFirebaseConnected || !window.db) {
-        window.saveLocalState();
-        return;
-      }
-      try {
-        const sessionRef = doc(window.db, 'artifacts', DEFAULT_APP_ID, 'public', 'data', 'sessions', userId);
-        await setDoc(sessionRef, window.sessions[userId] || {});
-      } catch (err) {
-        console.error("Cloud session sync error", err);
-      }
-    };
-
-    window.syncUserToCloud = async function(user) {
-      if (!window.isFirebaseConnected || !window.db) {
-        window.saveLocalState();
-        return;
-      }
-      try {
-        const userRef = doc(window.db, 'artifacts', DEFAULT_APP_ID, 'public', 'data', 'users', user.id);
-        await setDoc(userRef, user);
-      } catch (err) {
-        console.error("Cloud user sync error", err);
-      }
-    };
-
-    // App Startup
-    loadLocalState();
-    await initFirebase();
-    window.renderApp();
-  </script>
-
-  <script>
-    // --- APP CONTROLLER LOGIC ---
-
-    function playAudioChime() {
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5 note
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.5);
-      } catch(e){}
-    }
-
-    function updateWorldClocks() {
-      const now = new Date();
-      const optionsUK = { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-      const optionsBD = { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-      const optionsEU = { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-
-      document.getElementById('clockUK').textContent = new Intl.DateTimeFormat('en-GB', optionsUK).format(now);
-      document.getElementById('clockBD').textContent = new Intl.DateTimeFormat('en-GB', optionsBD).format(now);
-      document.getElementById('clockEU').textContent = new Intl.DateTimeFormat('en-GB', optionsEU).format(now);
-      document.getElementById('clockLocal').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-    }
-
-    setInterval(() => {
-      updateWorldClocks();
-      if (window.currentUser && window.currentUser.role === 'employee') {
-        updateLiveEmployeeTimers();
-      }
-    }, 1000);
-
-    function getUserSession(userId) {
-      if (!window.sessions[userId]) {
-        window.sessions[userId] = {
-          isWorking: false,
-          currentBreak: null,
-          breakStartTime: null,
-          breakLimitMins: 0,
-          shiftStartTime: null,
-          accumulatedWorkSecs: 0,
-          accumulatedBreakSecs: 0,
-          activityLogs: []
-        };
-      }
-      return window.sessions[userId];
-    }
-
-    function handleLogin(e) {
-      e.preventDefault();
-      const u = document.getElementById('loginUsername').value.trim();
-      const p = document.getElementById('loginPassword').value.trim();
-
-      const found = window.users.find(x => x.username.toLowerCase() === u.toLowerCase() && x.password === p);
-
-      if (found) {
-        window.currentUser = found;
-        window.saveLocalState();
-        document.getElementById('loginError').classList.add('hidden');
-        document.getElementById('loginForm').reset();
-        showToast(`Welcome back, ${window.currentUser.name}!`, 'success');
-        renderApp();
-      } else {
-        document.getElementById('loginError').classList.remove('hidden');
-      }
-    }
-
-    function fillLogin(u, p) {
-      document.getElementById('loginUsername').value = u;
-      document.getElementById('loginPassword').value = p;
-    }
-
-    function logout() {
-      window.currentUser = null;
-      localStorage.removeItem('teampulse_current_user');
-      showToast('Logged out', 'info');
-      renderApp();
-    }
-
-    function toggleWorkShift() {
-      if (!window.currentUser) return;
-      const session = getUserSession(window.currentUser.id);
-
-      if (!session.isWorking) {
-        session.isWorking = true;
-        session.shiftStartTime = Date.now();
-        session.currentBreak = null;
-        logActivity(window.currentUser.id, 'Shift Started', 'Active work started');
-        showToast('Shift started successfully!', 'success');
-      } else {
-        if (session.currentBreak) endBreak(false);
-        session.isWorking = false;
-        logActivity(window.currentUser.id, 'Shift Ended', 'Work shift completed');
-        showToast('Shift finished!', 'info');
-      }
-
-      window.syncSessionToCloud(window.currentUser.id);
-      renderEmployeeDashboard();
-    }
-
-    function triggerBreak(type, limitMins) {
-      if (!window.currentUser) return;
-      const session = getUserSession(window.currentUser.id);
-
-      if (!session.isWorking) return;
-
-      session.currentBreak = type;
-      session.breakStartTime = Date.now();
-      session.breakLimitMins = limitMins;
-      window.audioAlertPlayed = false;
-
-      const typeLabel = type === 'toilet' ? 'Toilet' : (type === 'smoke' ? 'Smoke' : 'Eat');
-      logActivity(window.currentUser.id, `${typeLabel} Break Started`, `${limitMins} min target`);
-      showToast(`${typeLabel} break timer started`, 'warning');
-
-      window.syncSessionToCloud(window.currentUser.id);
-      renderEmployeeDashboard();
-    }
-
-    function endBreak(render = true) {
-      if (!window.currentUser) return;
-      const session = getUserSession(window.currentUser.id);
-      if (!session.currentBreak) return;
-
-      const durationSecs = Math.floor((Date.now() - session.breakStartTime) / 1000);
-      session.accumulatedBreakSecs += durationSecs;
-
-      const typeLabel = session.currentBreak === 'toilet' ? 'Toilet' : (session.currentBreak === 'smoke' ? 'Smoke' : 'Eat');
-      logActivity(window.currentUser.id, `${typeLabel} Break Ended`, `Duration: ${Math.round(durationSecs/60)} mins`);
-
-      session.currentBreak = null;
-      session.breakStartTime = null;
-      session.breakLimitMins = 0;
-
-      window.syncSessionToCloud(window.currentUser.id);
-      if (render) renderEmployeeDashboard();
-    }
-
-    function logActivity(userId, type, note) {
-      const session = getUserSession(userId);
-      session.activityLogs.unshift({
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        type: type,
-        note: note
-      });
-    }
-
-    function updateLiveEmployeeTimers() {
-      if (!window.currentUser) return;
-      const session = getUserSession(window.currentUser.id);
-
-      if (session.isWorking && session.shiftStartTime) {
-        let nowSecs = Math.floor((Date.now() - session.shiftStartTime) / 1000);
-        document.getElementById('workTimer').textContent = formatSecondsHHMMSS(session.accumulatedWorkSecs + nowSecs);
-      } else {
-        document.getElementById('workTimer').textContent = formatSecondsHHMMSS(session.accumulatedWorkSecs);
-      }
-
-      if (session.currentBreak && session.breakStartTime) {
-        let elapsedBreakSecs = Math.floor((Date.now() - session.breakStartTime) / 1000);
-        let limitSecs = session.breakLimitMins * 60;
-        let diffSecs = limitSecs - elapsedBreakSecs;
-
-        const breakElem = document.getElementById('breakTimer');
-        const breakLabel = document.getElementById('breakTimerLabel');
-
-        if (diffSecs >= 0) {
-          breakElem.textContent = formatSecondsMMSS(diffSecs);
-          breakElem.className = "text-3xl sm:text-4xl font-mono font-bold text-amber-400";
-          breakLabel.textContent = `${session.currentBreak.toUpperCase()} Break Remaining`;
-        } else {
-          breakElem.textContent = "+" + formatSecondsMMSS(Math.abs(diffSecs));
-          breakElem.className = "text-3xl sm:text-4xl font-mono font-bold text-rose-500 animate-pulse";
-          breakLabel.textContent = "🚨 BREAK TIME EXCEEDED!";
-
-          if (!window.audioAlertPlayed) {
-            playAudioChime();
-            window.audioAlertPlayed = true;
-          }
-        }
-      } else {
-        document.getElementById('breakTimer').textContent = "00:00";
-        document.getElementById('breakTimer').className = "text-3xl sm:text-4xl font-mono font-bold text-slate-500";
-        document.getElementById('breakTimerLabel').textContent = "No active break";
-      }
-    }
-
-    function formatSecondsHHMMSS(totalSeconds) {
-      const hrs = Math.floor(totalSeconds / 3600);
-      const mins = Math.floor((totalSeconds % 3600) / 60);
-      const secs = totalSeconds % 60;
-      return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-    }
-
-    function formatSecondsMMSS(totalSeconds) {
-      const mins = Math.floor(totalSeconds / 60);
-      const secs = totalSeconds % 60;
-      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-    }
-
-    window.renderApp = function() {
-      const loginView = document.getElementById('loginView');
-      const empDash = document.getElementById('employeeDashboard');
-      const adminDash = document.getElementById('adminPanel');
-      const mobBadge = document.getElementById('mobileUserBadge');
-      const deskBadge = document.getElementById('desktopUserBadge');
-
-      if (!window.currentUser) {
-        loginView.classList.remove('hidden');
-        empDash.classList.add('hidden');
-        adminDash.classList.add('hidden');
-        mobBadge.innerHTML = '';
-        deskBadge.innerHTML = '';
-        return;
-      }
-
-      loginView.classList.add('hidden');
-
-      const userHtml = `
-        <div class="flex items-center gap-2 bg-slate-800 border border-slate-700 py-1 px-3 rounded-xl text-xs">
-          <div class="w-6 h-6 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold">
-            ${window.currentUser.name.charAt(0)}
-          </div>
-          <div class="text-left">
-            <div class="font-semibold text-white leading-tight">${window.currentUser.name}</div>
-            <div class="text-[10px] text-slate-400 uppercase">${window.currentUser.role}</div>
-          </div>
-        </div>
-        <button onclick="logout()" class="p-2 text-slate-400 hover:text-rose-400 transition" title="Logout">
-          <i class="fa-solid fa-right-from-bracket text-sm"></i>
-        </button>
-      `;
-      mobBadge.innerHTML = userHtml;
-      deskBadge.innerHTML = userHtml;
-
-      if (window.currentUser.role === 'admin') {
-        adminDash.classList.remove('hidden');
-        empDash.classList.add('hidden');
-        renderAdminOverview();
-        renderAdminLogs();
-        renderAdminUsers();
-      } else {
-        empDash.classList.remove('hidden');
-        adminDash.classList.add('hidden');
-        renderEmployeeDashboard();
-      }
-    };
-
-    function renderEmployeeDashboard() {
-      if (!window.currentUser) return;
-      const session = getUserSession(window.currentUser.id);
-
-      const statusDot = document.getElementById('empStatusDot');
-      const statusText = document.getElementById('empStatusText');
-      const subStatus = document.getElementById('empSubStatus');
-
-      const btnWork = document.getElementById('btnWorkShift');
-      const btnWorkText = document.getElementById('btnWorkText');
-      const btnWorkIcon = document.getElementById('btnWorkIcon');
-
-      const btnToilet = document.getElementById('btnToilet');
-      const btnSmoke = document.getElementById('btnSmoke');
-      const btnMeal = document.getElementById('btnMeal');
-      const btnEndBreak = document.getElementById('btnEndBreak');
-
-      if (!session.isWorking) {
-        statusDot.className = "w-4 h-4 rounded-full bg-slate-500 inline-block";
-        statusText.textContent = "Off Work";
-        subStatus.textContent = "Press 'Start Work' to begin your shift.";
-
-        btnWork.className = "sm:col-span-2 lg:col-span-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold p-4 rounded-xl shadow-lg transition-all flex flex-col items-center justify-center gap-2 active:scale-[0.98]";
-        btnWorkText.textContent = "Start Work";
-        btnWorkIcon.className = "fa-solid fa-play text-2xl";
-
-        btnToilet.disabled = true;
-        btnSmoke.disabled = true;
-        btnMeal.disabled = true;
-        btnEndBreak.disabled = true;
-        document.getElementById('shiftStartTime').textContent = "--:--";
-      } else if (session.currentBreak) {
-        statusDot.className = "w-4 h-4 rounded-full bg-amber-400 pulse-dot inline-block";
-        statusText.textContent = `On ${session.currentBreak.toUpperCase()} Break`;
-        subStatus.textContent = `Active ${session.breakLimitMins} minute break timer.`;
-
-        btnWork.className = "sm:col-span-2 lg:col-span-1 bg-rose-600 hover:bg-rose-500 text-white font-semibold p-4 rounded-xl shadow-lg transition-all flex flex-col items-center justify-center gap-2 active:scale-[0.98]";
-        btnWorkText.textContent = "Finish Shift";
-        btnWorkIcon.className = "fa-solid fa-stop text-2xl";
-
-        btnToilet.disabled = true;
-        btnSmoke.disabled = true;
-        btnMeal.disabled = true;
-        btnEndBreak.disabled = false;
-      } else {
-        statusDot.className = "w-4 h-4 rounded-full bg-emerald-400 pulse-dot inline-block";
-        statusText.textContent = "Working";
-        subStatus.textContent = "Shift in progress. Select a break button when needed.";
-
-        btnWork.className = "sm:col-span-2 lg:col-span-1 bg-rose-600 hover:bg-rose-500 text-white font-semibold p-4 rounded-xl shadow-lg transition-all flex flex-col items-center justify-center gap-2 active:scale-[0.98]";
-        btnWorkText.textContent = "Finish Shift";
-        btnWorkIcon.className = "fa-solid fa-stop text-2xl";
-
-        btnToilet.disabled = false;
-        btnSmoke.disabled = false;
-        btnMeal.disabled = false;
-        btnEndBreak.disabled = true;
-
-        if (session.shiftStartTime) {
-          document.getElementById('shiftStartTime').textContent = new Date(session.shiftStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        }
-      }
-
-      document.getElementById('totalBreakUsed').textContent = `${Math.round(session.accumulatedBreakSecs / 60)} mins`;
-
-      const logBody = document.getElementById('employeeLogTable');
-      document.getElementById('activityCount').textContent = `${session.activityLogs.length} events logged`;
-
-      if (session.activityLogs.length === 0) {
-        logBody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-500 italic">No activity recorded today yet.</td></tr>`;
-      } else {
-        logBody.innerHTML = session.activityLogs.map(log => `
-          <tr class="hover:bg-slate-700/30 transition-colors">
-            <td class="p-3 font-mono text-slate-300">${log.timestamp}</td>
-            <td class="p-3 font-medium text-white">${log.type}</td>
-            <td class="p-3 text-slate-400">${log.note}</td>
-          </tr>
-        `).join('');
-      }
-    }
-
-    function switchAdminTab(tab) {
-      document.getElementById('adminTabOverview').classList.add('hidden');
-      document.getElementById('adminTabLogs').classList.add('hidden');
-      document.getElementById('adminTabUsers').classList.add('hidden');
-
-      document.getElementById('tabBtnOverview').className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 text-slate-300";
-      document.getElementById('tabBtnLogs').className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 text-slate-300";
-      document.getElementById('tabBtnUsers').className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 text-slate-300";
-
-      if (tab === 'overview') {
-        document.getElementById('adminTabOverview').classList.remove('hidden');
-        document.getElementById('tabBtnOverview').className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand-600 text-white";
-        renderAdminOverview();
-      } else if (tab === 'logs') {
-        document.getElementById('adminTabLogs').classList.remove('hidden');
-        document.getElementById('tabBtnLogs').className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand-600 text-white";
-        renderAdminLogs();
-      } else if (tab === 'users') {
-        document.getElementById('adminTabUsers').classList.remove('hidden');
-        document.getElementById('tabBtnUsers').className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand-600 text-white";
-        renderAdminUsers();
-      }
-    }
-
-    function renderAdminOverview() {
-      let workingCount = 0, breakCount = 0, offCount = 0;
-      const teamGrid = document.getElementById('adminTeamGrid');
-      const employees = window.users.filter(u => u.role === 'employee');
-
-      teamGrid.innerHTML = employees.map(emp => {
-        const session = getUserSession(emp.id);
-        let statusBadge = '';
-        let cardBorder = 'border-slate-700';
-
-        if (!session.isWorking) {
-          offCount++;
-          statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-700 text-slate-300">Off Work</span>`;
-        } else if (session.currentBreak) {
-          breakCount++;
-          cardBorder = 'border-amber-500/50';
-          statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">On ${session.currentBreak.toUpperCase()} Break</span>`;
-        } else {
-          workingCount++;
-          cardBorder = 'border-emerald-500/50';
-          statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Working</span>`;
+        function initClocks() {
+            setInterval(() => {
+                const now = new Date();
+                document.getElementById('clock-uk').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Europe/London' });
+                document.getElementById('clock-eu').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Europe/Paris' });
+                document.getElementById('clock-bd').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka' });
+            }, 1000);
         }
 
-        return `
-          <div class="bg-slate-900 border ${cardBorder} rounded-xl p-4 shadow-md flex flex-col justify-between">
-            <div>
-              <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center gap-2">
-                  <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 text-brand-400 font-bold flex items-center justify-center text-xs">
-                    ${emp.name.charAt(0)}
-                  </div>
-                  <div>
-                    <h4 class="text-xs font-bold text-white">${emp.name}</h4>
-                    <p class="text-[10px] text-slate-400">@${emp.username}</p>
-                  </div>
-                </div>
-                ${statusBadge}
-              </div>
-
-              <div class="grid grid-cols-2 gap-2 my-2 text-xs bg-slate-800/60 rounded-lg p-2 border border-slate-700/50">
-                <div>
-                  <span class="text-slate-400 block text-[10px]">Work Duration:</span>
-                  <span class="font-semibold text-emerald-400">${Math.round((session.accumulatedWorkSecs||0)/60)}m</span>
-                </div>
-                <div>
-                  <span class="text-slate-400 block text-[10px]">Total Break:</span>
-                  <span class="font-semibold text-amber-400">${Math.round((session.accumulatedBreakSecs||0)/60)}m</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      document.getElementById('statWorking').textContent = workingCount;
-      document.getElementById('statBreak').textContent = breakCount;
-      document.getElementById('statOff').textContent = offCount;
-    }
-
-    function renderAdminLogs() {
-      const logsTable = document.getElementById('adminLogsTable');
-      const employees = window.users.filter(u => u.role === 'employee');
-
-      logsTable.innerHTML = employees.map(emp => {
-        const session = getUserSession(emp.id);
-        const workMins = Math.round((session.accumulatedWorkSecs || 0) / 60);
-        const breakMins = Math.round((session.accumulatedBreakSecs || 0) / 60);
-
-        return `
-          <tr class="hover:bg-slate-700/30 transition-colors">
-            <td class="p-3 font-semibold text-white">${emp.name}</td>
-            <td class="p-3 font-mono text-emerald-400">${workMins} mins</td>
-            <td class="p-3 font-mono text-amber-400">${breakMins} mins</td>
-            <td class="p-3">
-              <span class="px-2 py-0.5 rounded text-[10px] ${session.isWorking ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700 text-slate-300'}">
-                ${session.isWorking ? 'Active' : 'Offline'}
-              </span>
-            </td>
-            <td class="p-3 text-right">
-              <button onclick="openManualLogModal('${emp.id}')" class="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 rounded">
-                Edit
-              </button>
-            </td>
-          </tr>
-        `;
-      }).join('');
-    }
-
-    function exportToCSV() {
-      let csvContent = "data:text/csv;charset=utf-8,Employee Name,Username,Work Minutes,Break Minutes,Status\n";
-      const employees = window.users.filter(u => u.role === 'employee');
-
-      employees.forEach(emp => {
-        const session = getUserSession(emp.id);
-        const workMins = Math.round((session.accumulatedWorkSecs || 0) / 60);
-        const breakMins = Math.round((session.accumulatedBreakSecs || 0) / 60);
-        const status = session.isWorking ? (session.currentBreak ? session.currentBreak : 'Working') : 'Off Work';
-
-        csvContent += `"${emp.name}","${emp.username}",${workMins},${breakMins},"${status}"\n`;
-      });
-
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `TeamPulse_Attendance_${new Date().toISOString().slice(0,10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-
-    function renderAdminUsers() {
-      const usersTable = document.getElementById('adminUsersTable');
-      usersTable.innerHTML = window.users.map(u => `
-        <tr class="hover:bg-slate-700/30 transition">
-          <td class="p-3 font-semibold text-white">${u.name}</td>
-          <td class="p-3 text-slate-300">@${u.username}</td>
-          <td class="p-3 uppercase font-mono text-[10px] text-brand-400">${u.role}</td>
-          <td class="p-3 font-mono text-slate-400">${u.password}</td>
-          <td class="p-3 text-right space-x-1">
-            <button onclick="editUser('${u.id}')" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs"><i class="fa-solid fa-pen"></i></button>
-            ${u.username !== 'admin' ? `<button onclick="deleteUser('${u.id}')" class="px-2 py-1 bg-rose-500/20 hover:bg-rose-600 text-rose-300 rounded text-xs"><i class="fa-solid fa-trash"></i></button>` : ''}
-          </td>
-        </tr>
-      `).join('');
-    }
-
-    function openConfigModal() {
-      const saved = localStorage.getItem('teampulse_firebase_cfg');
-      if (saved) {
-        try {
-          const cfg = JSON.parse(saved);
-          document.getElementById('cfgApiKey').value = cfg.apiKey || '';
-          document.getElementById('cfgAuthDomain').value = cfg.authDomain || '';
-          document.getElementById('cfgProjectId').value = cfg.projectId || '';
-          document.getElementById('cfgStorageBucket').value = cfg.storageBucket || '';
-          document.getElementById('cfgAppId').value = cfg.appId || '';
-        } catch(e){}
-      }
-      document.getElementById('configModal').classList.remove('hidden');
-    }
-
-    function closeConfigModal() { document.getElementById('configModal').classList.add('hidden'); }
-
-    function saveFirebaseConfig(e) {
-      e.preventDefault();
-      const cfg = {
-        apiKey: document.getElementById('cfgApiKey').value.trim(),
-        authDomain: document.getElementById('cfgAuthDomain').value.trim(),
-        projectId: document.getElementById('cfgProjectId').value.trim(),
-        storageBucket: document.getElementById('cfgStorageBucket').value.trim(),
-        appId: document.getElementById('cfgAppId').value.trim()
-      };
-      localStorage.setItem('teampulse_firebase_cfg', JSON.stringify(cfg));
-      closeConfigModal();
-      showToast('Firebase credentials saved! Reloading...', 'success');
-      setTimeout(() => window.location.reload(), 1000);
-    }
-
-    function clearFirebaseConfig() {
-      localStorage.removeItem('teampulse_firebase_cfg');
-      closeConfigModal();
-      showToast('Disconnected Cloud. Reloading...', 'info');
-      setTimeout(() => window.location.reload(), 1000);
-    }
-
-    function openUserModal(editId = null) {
-      document.getElementById('userForm').reset();
-      if (editId) {
-        const u = window.users.find(x => x.id === editId);
-        if (u) {
-          document.getElementById('editUserId').value = u.id;
-          document.getElementById('modalFullName').value = u.name;
-          document.getElementById('modalUsername').value = u.username;
-          document.getElementById('modalPassword').value = u.password;
-          document.getElementById('modalRole').value = u.role;
+        function initFirebase() {
+            const config = JSON.parse(localStorage.getItem('tp_fb_config'));
+            if (config && config.apiKey && typeof firebase !== 'undefined') {
+                try {
+                    if (!firebase.apps.length) {
+                        firebase.initializeApp(config);
+                    }
+                    db = firebase.firestore();
+                    console.log("Firebase initialized");
+                } catch(e) {
+                    console.error("Firebase error", e);
+                }
+            }
         }
-      } else {
-        document.getElementById('editUserId').value = '';
-      }
-      document.getElementById('userModal').classList.remove('hidden');
-    }
 
-    function closeUserModal() { document.getElementById('userModal').classList.add('hidden'); }
+        function checkSession() {
+            const saved = localStorage.getItem('tp_session');
+            if (saved) {
+                currentUser = JSON.parse(saved);
+                renderApp();
+            } else {
+                renderApp();
+            }
+        }
 
-    function saveUser(e) {
-      e.preventDefault();
-      const id = document.getElementById('editUserId').value;
-      const name = document.getElementById('modalFullName').value.trim();
-      const username = document.getElementById('modalUsername').value.trim();
-      const password = document.getElementById('modalPassword').value.trim();
-      const role = document.getElementById('modalRole').value;
+        function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('login-username').value.trim();
+            const p = document.getElementById('login-password').value.trim();
 
-      if (id) {
-        const u = window.users.find(x => x.id === id);
-        if (u) { u.name = name; u.username = username; u.password = password; u.role = role; window.syncUserToCloud(u); }
-      } else {
-        const newUser = { id: 'usr_' + Date.now(), name, username, password, role };
-        window.users.push(newUser);
-        window.syncUserToCloud(newUser);
-      }
+            const found = users.find(x => x.username.toLowerCase() === u.toLowerCase() && x.password === p);
 
-      closeUserModal();
-      showToast('User account saved!', 'success');
-      renderAdminUsers();
-      renderAdminOverview();
-    }
+            if (found) {
+                currentUser = found;
+                localStorage.setItem('tp_session', JSON.stringify(currentUser));
+                renderApp();
+            } else {
+                alert('Invalid Username or Password!');
+            }
+        }
 
-    function editUser(id) { openUserModal(id); }
+        function handleLogout() {
+            currentUser = null;
+            localStorage.removeItem('tp_session');
+            clearInterval(workInterval);
+            clearInterval(breakInterval);
+            renderApp();
+        }
 
-    function deleteUser(id) {
-      window.users = window.users.filter(x => x.id !== id);
-      delete window.sessions[id];
-      window.saveLocalState();
-      showToast('User account removed', 'info');
-      renderAdminUsers();
-      renderAdminOverview();
-    }
+        function renderApp() {
+            const headerStatus = document.getElementById('user-header-status');
+            const loginView = document.getElementById('view-login');
+            const dashView = document.getElementById('view-dashboard');
+            const adminView = document.getElementById('view-admin');
 
-    function openManualLogModal(userId = null) {
-      const select = document.getElementById('logUserSelect');
-      const employees = window.users.filter(u => u.role === 'employee');
-      select.innerHTML = employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
-      if (userId) select.value = userId;
+            if (!currentUser) {
+                headerStatus.innerHTML = '';
+                loginView.classList.remove('hidden');
+                dashView.classList.add('hidden');
+                adminView.classList.add('hidden');
+            } else {
+                loginView.classList.add('hidden');
+                headerStatus.innerHTML = `
+                    <span class="text-xs text-slate-300">Logged in as <b class="text-indigo-400">${currentUser.username}</b> (${currentUser.role})</span>
+                    <button onclick="handleLogout()" class="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1.5 rounded text-white">Logout</button>
+                `;
 
-      const targetId = select.value;
-      if (targetId) {
-        const session = getUserSession(targetId);
-        document.getElementById('logWorkMinutes').value = Math.round((session.accumulatedWorkSecs || 0) / 60);
-        document.getElementById('logBreakMinutes').value = Math.round((session.accumulatedBreakSecs || 0) / 60);
-      }
-      document.getElementById('logOverrideModal').classList.remove('hidden');
-    }
+                if (currentUser.role === 'admin') {
+                    dashView.classList.add('hidden');
+                    adminView.classList.remove('hidden');
+                    renderAdminPanel();
+                } else {
+                    adminView.classList.add('hidden');
+                    dashView.classList.remove('hidden');
+                    renderEmployeeDashboard();
+                }
+            }
+        }
 
-    function closeLogModal() { document.getElementById('logOverrideModal').classList.add('hidden'); }
+        function setEmployeeStatus(status) {
+            let userState = JSON.parse(localStorage.getItem(`tp_state_${currentUser.id}`)) || {
+                status: 'Off Work',
+                workStart: null,
+                breakEnd: null
+            };
 
-    function saveLogOverride(e) {
-      e.preventDefault();
-      const userId = document.getElementById('logUserSelect').value;
-      const workMins = parseInt(document.getElementById('logWorkMinutes').value) || 0;
-      const breakMins = parseInt(document.getElementById('logBreakMinutes').value) || 0;
+            const now = Date.now();
+            userState.status = status;
 
-      const session = getUserSession(userId);
-      session.accumulatedWorkSecs = workMins * 60;
-      session.accumulatedBreakSecs = breakMins * 60;
+            if (status === 'Working' && !userState.workStart) {
+                userState.workStart = now;
+                userState.breakEnd = null;
+            } else if (status === 'Toilet Break' || status === 'Smoke Break') {
+                userState.breakEnd = now + (15 * 60 * 1000); // 15 mins
+            } else if (status === 'Eat Break') {
+                userState.breakEnd = now + (60 * 60 * 1000); // 1 hour
+            } else if (status === 'Off Work') {
+                userState.workStart = null;
+                userState.breakEnd = null;
+            }
 
-      window.syncSessionToCloud(userId);
-      closeLogModal();
-      showToast('Log overridden successfully', 'success');
-      renderAdminLogs();
-    }
+            localStorage.setItem(`tp_state_${currentUser.id}`, JSON.stringify(userState));
 
-    function showToast(msg, type = 'info') {
-      const toast = document.getElementById('toast');
-      document.getElementById('toastMessage').textContent = msg;
-      toast.classList.remove('translate-y-20', 'opacity-0');
-      toast.classList.add('translate-y-0', 'opacity-100');
-      setTimeout(() => {
-        toast.classList.remove('translate-y-0', 'opacity-100');
-        toast.classList.add('translate-y-20', 'opacity-0');
-      }, 3000);
-    }
-  </script>
+            if (db) {
+                db.collection('attendance').doc(currentUser.id).set(userState);
+            }
+
+            renderEmployeeDashboard();
+        }
+
+        function renderEmployeeDashboard() {
+            document.getElementById('dash-user-name').innerText = `Hello, ${currentUser.username}`;
+            let userState = JSON.parse(localStorage.getItem(`tp_state_${currentUser.id}`)) || { status: 'Off Work' };
+            
+            document.getElementById('dash-status-badge').innerText = userState.status;
+
+            clearInterval(workInterval);
+            clearInterval(breakInterval);
+
+            workInterval = setInterval(() => {
+                if (userState.workStart) {
+                    const diff = Math.floor((Date.now() - userState.workStart) / 1000);
+                    const h = String(Math.floor(diff / 3600)).padStart(2, '0');
+                    const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+                    const s = String(diff % 60).padStart(2, '0');
+                    document.getElementById('timer-work').innerText = `${h}:${m}:${s}`;
+                } else {
+                    document.getElementById('timer-work').innerText = "00:00:00";
+                }
+            }, 1000);
+
+            breakInterval = setInterval(() => {
+                if (userState.breakEnd) {
+                    const diff = Math.max(0, Math.floor((userState.breakEnd - Date.now()) / 1000));
+                    const m = String(Math.floor(diff / 60)).padStart(2, '0');
+                    const s = String(diff % 60).padStart(2, '0');
+                    document.getElementById('timer-break').innerText = `00:${m}:${s}`;
+                } else {
+                    document.getElementById('timer-break').innerText = "00:00:00";
+                }
+            }, 1000);
+        }
+
+        function renderAdminPanel() {
+            const grid = document.getElementById('admin-team-grid');
+            grid.innerHTML = '';
+
+            users.filter(x => x.role !== 'admin').forEach(emp => {
+                let state = JSON.parse(localStorage.getItem(`tp_state_${emp.id}`)) || { status: 'Off Work' };
+                grid.innerHTML += `
+                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="font-bold text-white">${emp.username}</h4>
+                            <span class="text-xs px-2 py-0.5 rounded bg-slate-700 text-indigo-300">${state.status}</span>
+                        </div>
+                        <p class="text-xs text-slate-400">Tracking active shift and break status locally or via cloud.</p>
+                    </div>
+                `;
+            });
+
+            const list = document.getElementById('user-accounts-list');
+            list.innerHTML = '';
+            users.forEach(u => {
+                list.innerHTML += `
+                    <tr>
+                        <td class="px-4 py-3 font-semibold text-white">${u.username}</td>
+                        <td class="px-4 py-3 text-xs uppercase">${u.role}</td>
+                        <td class="px-4 py-3">
+                            <button onclick="deleteUser('${u.id}')" class="text-rose-400 hover:text-rose-300 text-xs"><i class="fa-solid fa-trash"></i> Delete</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function openUserModal() { document.getElementById('modal-user').classList.remove('hidden'); }
+        function closeUserModal() { document.getElementById('modal-user').classList.add('hidden'); }
+
+        function saveUserAccount(e) {
+            e.preventDefault();
+            const u = document.getElementById('modal-username').value.trim();
+            const p = document.getElementById('modal-password').value.trim();
+            const r = document.getElementById('modal-role').value;
+
+            users.push({ id: 'u_' + Date.now(), username: u, password: p, role: r });
+            localStorage.setItem('tp_users', JSON.stringify(users));
+            closeUserModal();
+            renderAdminPanel();
+        }
+
+        function deleteUser(id) {
+            users = users.filter(x => x.id !== id);
+            localStorage.setItem('tp_users', JSON.stringify(users));
+            renderAdminPanel();
+        }
+
+        function openFirebaseConfigModal() { document.getElementById('modal-firebase').classList.remove('hidden'); }
+        function closeFirebaseModal() { document.getElementById('modal-firebase').classList.add('hidden'); }
+
+        function saveFirebaseConfig(e) {
+            e.preventDefault();
+            const cfg = {
+                apiKey: document.getElementById('fb-apiKey').value.trim(),
+                authDomain: document.getElementById('fb-authDomain').value.trim(),
+                projectId: document.getElementById('fb-projectId').value.trim()
+            };
+            localStorage.setItem('tp_fb_config', JSON.stringify(cfg));
+            closeFirebaseModal();
+            location.reload();
+        }
+    </script>
 </body>
 </html>
