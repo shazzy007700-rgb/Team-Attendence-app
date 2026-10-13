@@ -170,14 +170,14 @@
             <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
                 <div>
                     <h2 class="text-2xl font-bold text-white">Admin Control Panel</h2>
-                    <p class="text-slate-400 text-sm">Real-time employee activity, working vs break durations & credentials</p>
+                    <p class="text-slate-400 text-sm">Live userwise working time, total break minutes & status monitor</p>
                 </div>
                 <div class="flex gap-2">
                     <button onclick="openUserModal()" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
                         <i class="fa-solid fa-user-plus"></i> Add User
                     </button>
                     <button onclick="loadAdminData()" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
-                        <i class="fa-solid fa-rotate text-indigo-400"></i> Refresh Live Data
+                        <i class="fa-solid fa-rotate text-indigo-400"></i> Refresh
                     </button>
                 </div>
             </div>
@@ -207,23 +207,46 @@
                 </div>
             </div>
 
-            <!-- Live Employee Activity Feed -->
+            <!-- USERWISE BREAK & WORKING TIME ANALYTICS PANEL -->
             <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
                 <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-users text-indigo-400"></i> Employee Live Tracking & Work Summary
+                    <i class="fa-solid fa-user-clock text-indigo-400"></i> Userwise Break & Working Time Summary
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="text-xs uppercase bg-slate-900/60 text-slate-400">
+                            <tr>
+                                <th class="px-4 py-3">Employee Name</th>
+                                <th class="px-4 py-3">Current Status</th>
+                                <th class="px-4 py-3">Total Working Time</th>
+                                <th class="px-4 py-3">Total Break Time</th>
+                                <th class="px-4 py-3">Last Activity Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-userwise-list" class="divide-y divide-slate-700/50">
+                            <tr><td colspan="5" class="px-4 py-3 text-slate-400 text-xs">Loading userwise statistics...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Live Logs Feed -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-indigo-400"></i> Recent Activity Logs (Google Sheet)
                 </h3>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-300">
                         <thead class="text-xs uppercase bg-slate-900/60 text-slate-400">
                             <tr>
                                 <th class="px-4 py-3">Employee</th>
-                                <th class="px-4 py-3">Current Activity</th>
-                                <th class="px-4 py-3">Total Worked</th>
-                                <th class="px-4 py-3">Last Updated</th>
+                                <th class="px-4 py-3">Logged Status</th>
+                                <th class="px-4 py-3">Worked Duration</th>
+                                <th class="px-4 py-3">Timestamp</th>
                             </tr>
                         </thead>
                         <tbody id="admin-activity-list" class="divide-y divide-slate-700/50">
-                            <tr><td colspan="4" class="px-4 py-3 text-slate-400 text-xs">Loading live team data...</td></tr>
+                            <tr><td colspan="4" class="px-4 py-3 text-slate-400 text-xs">Loading live logs from Google Sheet...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -232,7 +255,7 @@
             <!-- Registered Accounts List -->
             <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
                 <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-users-gear text-indigo-400"></i> Registered Accounts Manager
+                    <i class="fa-solid fa-users-gear text-indigo-400"></i> Registered User Accounts
                 </h3>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-300">
@@ -502,11 +525,17 @@
                 currentTotal += Math.floor((Date.now() - state.lastStartTimestamp) / 1000);
             }
 
+            let currentBreak = state.totalBreakSec || 0;
+            if (state.status.includes('Break') && state.lastBreakStartTimestamp) {
+                currentBreak += Math.floor((Date.now() - state.lastBreakStartTimestamp) / 1000);
+            }
+
             const payload = {
                 action: "updateStatus",
                 username: currentUser.username,
                 status: state.status,
-                totalWorkSec: currentTotal
+                totalWorkSec: currentTotal,
+                totalBreakSec: currentBreak
             };
 
             fetch(GOOGLE_SCRIPT_URL, {
@@ -612,53 +641,108 @@
             });
         }
 
+        function formatSecToHHMMSS(seconds) {
+            let sec = parseInt(seconds || 0);
+            let h = String(Math.floor(sec / 3600)).padStart(2, '0');
+            let m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+            let s = String(sec % 60).padStart(2, '0');
+            return `${h}h ${m}m ${s}s`;
+        }
+
         function loadAdminData() {
             fetch(`${GOOGLE_SCRIPT_URL}?action=getAttendance`)
                 .then(res => res.json())
                 .then(logs => {
                     const activityList = document.getElementById('admin-activity-list');
+                    const userwiseList = document.getElementById('admin-userwise-list');
+
                     if (!logs || logs.length === 0) {
-                        activityList.innerHTML = `<tr><td colspan="4" class="px-4 py-3 text-slate-400 text-xs">No records found in Google Sheet.</td></tr>`;
+                        activityList.innerHTML = `<tr><td colspan="4" class="px-4 py-3 text-slate-400 text-xs">No records found.</td></tr>`;
+                        userwiseList.innerHTML = `<tr><td colspan="5" class="px-4 py-3 text-slate-400 text-xs">No userwise data available.</td></tr>`;
                         return;
                     }
+
                     activityList.innerHTML = '';
+                    userwiseList.innerHTML = '';
 
                     let workingCount = 0;
                     let breakCount = 0;
                     let offCount = 0;
 
-                    // Latest record per user mapping
-                    let latestUserMap = {};
+                    // Latest state & total aggregation per user
+                    let userSummaryMap = {};
+
                     logs.forEach(log => {
-                        latestUserMap[log.username] = log;
+                        let u = log.username;
+                        if (!userSummaryMap[u]) {
+                            userSummaryMap[u] = {
+                                username: u,
+                                status: log.status,
+                                totalWorkSec: parseInt(log.totalWorkSec || 0),
+                                totalBreakSec: parseInt(log.totalBreakSec || 0),
+                                timestamp: log.timestamp
+                            };
+                        } else {
+                            userSummaryMap[u].status = log.status;
+                            userSummaryMap[u].timestamp = log.timestamp;
+                            if (parseInt(log.totalWorkSec || 0) > userSummaryMap[u].totalWorkSec) {
+                                userSummaryMap[u].totalWorkSec = parseInt(log.totalWorkSec || 0);
+                            }
+                            if (parseInt(log.totalBreakSec || 0) > userSummaryMap[u].totalBreakSec) {
+                                userSummaryMap[u].totalBreakSec = parseInt(log.totalBreakSec || 0);
+                            }
+                        }
                     });
 
-                    Object.values(latestUserMap).forEach(log => {
-                        if (log.status === 'Working') workingCount++;
-                        else if (log.status.includes('Break')) breakCount++;
+                    // Render Userwise Table
+                    Object.values(userSummaryMap).forEach(uData => {
+                        if (uData.status === 'Working') workingCount++;
+                        else if (uData.status.includes('Break')) breakCount++;
                         else offCount++;
+
+                        let statusBadge = '';
+                        if (uData.status === 'Working') {
+                            statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse"><i class="fa-solid fa-briefcase mr-1"></i> Working</span>`;
+                        } else if (uData.status.includes('Break')) {
+                            statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30"><i class="fa-solid fa-mug-hot mr-1"></i> ${uData.status}</span>`;
+                        } else {
+                            statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30"><i class="fa-solid fa-power-off mr-1"></i> Off Work</span>`;
+                        }
+
+                        // Local state check for fallback break time precision
+                        let localState = JSON.parse(localStorage.getItem(`tp_state_${uData.username}`)) || {};
+                        let breakDisplay = formatSecToHHMMSS(uData.totalBreakSec || localState.totalBreakSec || 0);
+
+                        userwiseList.innerHTML += `
+                            <tr>
+                                <td class="px-4 py-3 font-bold text-white flex items-center gap-2">
+                                    <div class="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-xs text-indigo-400 font-bold">${uData.username.charAt(0).toUpperCase()}</div>
+                                    ${uData.username}
+                                </td>
+                                <td class="px-4 py-3">${statusBadge}</td>
+                                <td class="px-4 py-3 font-mono font-bold text-emerald-400">${formatSecToHHMMSS(uData.totalWorkSec)}</td>
+                                <td class="px-4 py-3 font-mono font-bold text-amber-400">${breakDisplay}</td>
+                                <td class="px-4 py-3 text-xs text-slate-400">${uData.timestamp}</td>
+                            </tr>
+                        `;
                     });
 
                     document.getElementById('stat-working-now').innerText = workingCount;
                     document.getElementById('stat-on-break').innerText = breakCount;
                     document.getElementById('stat-off-work').innerText = offCount;
 
-                    logs.reverse().slice(0, 25).forEach(log => {
-                        let sec = parseInt(log.totalWorkSec || 0);
-                        let h = String(Math.floor(sec / 3600)).padStart(2, '0');
-                        let m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
-                        let duration = `${h}h ${m}m`;
-
+                    // Render Activity Feed
+                    logs.reverse().slice(0, 20).forEach(log => {
                         activityList.innerHTML += `
                             <tr>
                                 <td class="px-4 py-3 font-bold text-white">${log.username}</td>
                                 <td class="px-4 py-3">
                                     <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                        log.status === 'Working' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse' :
+                                        log.status === 'Working' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
                                         log.status === 'Off Work' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                                     }">${log.status}</span>
                                 </td>
-                                <td class="px-4 py-3 font-mono font-bold text-emerald-400">${duration}</td>
+                                <td class="px-4 py-3 font-mono text-emerald-400">${formatSecToHHMMSS(log.totalWorkSec)}</td>
                                 <td class="px-4 py-3 text-xs text-slate-400">${log.timestamp}</td>
                             </tr>
                         `;
