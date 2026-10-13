@@ -14,7 +14,6 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
-        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen pb-12">
@@ -30,10 +29,16 @@
                 </div>
             </div>
 
+            <!-- Firebase Connection Status Badge -->
+            <div id="firebase-status-badge" class="flex items-center gap-2 bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-400">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" id="fb-dot"></span>
+                <span id="fb-text">Firebase: Disconnected</span>
+            </div>
+
             <!-- World Clocks Bar -->
             <div class="flex flex-wrap items-center gap-3 text-xs">
                 <div class="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700">
-                    <span class="text-slate-400">UK (GMT/BST):</span>
+                    <span class="text-slate-400">UK (GMT):</span>
                     <span id="clock-uk" class="font-mono font-bold text-emerald-400 ml-1">00:00:00</span>
                 </div>
                 <div class="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700">
@@ -47,9 +52,7 @@
             </div>
 
             <!-- Auth Controls -->
-            <div id="user-header-status" class="flex items-center gap-3">
-                <!-- Injected via JS -->
-            </div>
+            <div id="user-header-status" class="flex items-center gap-3"></div>
         </div>
     </header>
 
@@ -60,7 +63,7 @@
             <div class="text-center mb-6">
                 <i class="fa-solid fa-user-lock text-4xl text-indigo-400 mb-2"></i>
                 <h2 class="text-2xl font-bold text-white">Sign In to Workspace</h2>
-                <p class="text-sm text-slate-400">Enter your employee or admin credentials</p>
+                <p class="text-sm text-slate-400">Enter employee or admin credentials</p>
             </div>
             
             <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
@@ -106,26 +109,41 @@
             </div>
 
             <!-- Action Controls -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                <!-- Start Work -->
                 <button onclick="setEmployeeStatus('Working')" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition">
-                    <i class="fa-solid fa-briefcase text-2xl"></i>
-                    <span class="font-semibold text-sm">Start Work</span>
+                    <i class="fa-solid fa-play text-2xl text-emerald-400"></i>
+                    <span class="font-semibold text-xs sm:text-sm">Start Work</span>
                 </button>
+
+                <!-- Back to Seat (NEW) -->
+                <button onclick="setEmployeeStatus('Working')" class="bg-indigo-600/30 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/40 p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition ring-2 ring-indigo-500/20">
+                    <i class="fa-solid fa-chair text-2xl text-indigo-400"></i>
+                    <span class="font-bold text-xs sm:text-sm">Back to Seat</span>
+                </button>
+
+                <!-- Toilet Break -->
                 <button onclick="setEmployeeStatus('Toilet Break')" class="bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition">
-                    <i class="fa-solid fa-restroom text-2xl"></i>
-                    <span class="font-semibold text-sm">Toilet (15m)</span>
+                    <i class="fa-solid fa-restroom text-2xl text-amber-400"></i>
+                    <span class="font-semibold text-xs sm:text-sm">Toilet (15m)</span>
                 </button>
+
+                <!-- Smoke Break -->
                 <button onclick="setEmployeeStatus('Smoke Break')" class="bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border border-orange-500/30 p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition">
-                    <i class="fa-solid fa-smoking text-2xl"></i>
-                    <span class="font-semibold text-sm">Smoke (15m)</span>
+                    <i class="fa-solid fa-smoking text-2xl text-orange-400"></i>
+                    <span class="font-semibold text-xs sm:text-sm">Smoke (15m)</span>
                 </button>
+
+                <!-- Eat Break -->
                 <button onclick="setEmployeeStatus('Eat Break')" class="bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition">
-                    <i class="fa-solid fa-utensils text-2xl"></i>
-                    <span class="font-semibold text-sm">Eat (1 Hr)</span>
+                    <i class="fa-solid fa-utensils text-2xl text-sky-400"></i>
+                    <span class="font-semibold text-xs sm:text-sm">Eat (1 Hr)</span>
                 </button>
+
+                <!-- Off Work -->
                 <button onclick="setEmployeeStatus('Off Work')" class="bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition col-span-2 sm:col-span-1">
-                    <i class="fa-solid fa-power-off text-2xl"></i>
-                    <span class="font-semibold text-sm">Off Work</span>
+                    <i class="fa-solid fa-power-off text-2xl text-rose-400"></i>
+                    <span class="font-semibold text-xs sm:text-sm">Off Work</span>
                 </button>
             </div>
         </div>
@@ -148,9 +166,7 @@
             </div>
 
             <!-- Team Live Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="admin-team-grid">
-                <!-- Injected via JS -->
-            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="admin-team-grid"></div>
 
             <!-- User Accounts Manager -->
             <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 mt-8">
@@ -166,9 +182,7 @@
                                 <th class="px-4 py-3">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="user-accounts-list" class="divide-y divide-slate-700/50">
-                            <!-- Injected via JS -->
-                        </tbody>
+                        <tbody id="user-accounts-list" class="divide-y divide-slate-700/50"></tbody>
                     </table>
                 </div>
             </div>
@@ -179,9 +193,8 @@
     <!-- USER MODAL -->
     <div id="modal-user" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <h3 class="text-xl font-bold text-white mb-4" id="modal-user-title">Add New Team Member</h3>
+            <h3 class="text-xl font-bold text-white mb-4">Add New Team Member</h3>
             <form onsubmit="saveUserAccount(event)" class="space-y-4">
-                <input type="hidden" id="edit-user-original-id">
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Username</label>
                     <input type="text" id="modal-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white">
@@ -198,8 +211,8 @@
                     </select>
                 </div>
                 <div class="flex justify-end gap-3 pt-4 border-t border-slate-700">
-                    <button type="button" onclick="closeUserModal()" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm">Cancel</button>
-                    <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold">Save Account</button>
+                    <button type="button" onclick="closeUserModal()" class="px-4 py-2 rounded-lg bg-slate-700 text-sm">Cancel</button>
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 text-sm font-semibold">Save Account</button>
                 </div>
             </form>
         </div>
@@ -208,8 +221,8 @@
     <!-- FIREBASE SETUP MODAL -->
     <div id="modal-firebase" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <h3 class="text-xl font-bold text-white mb-2">Firebase Cloud Sync</h3>
-            <p class="text-xs text-slate-400 mb-4">Input your Firebase credentials to enable live multi-device synchronization across remote team members.</p>
+            <h3 class="text-xl font-bold text-white mb-2">Firebase Cloud Credentials</h3>
+            <p class="text-xs text-slate-400 mb-4">Input keys from Firebase Project Settings > General to sync live.</p>
             <form onsubmit="saveFirebaseConfig(event)" class="space-y-3">
                 <div>
                     <label class="block text-xs uppercase text-slate-400 mb-1">API Key</label>
@@ -231,21 +244,17 @@
         </div>
     </div>
 
-    <!-- APP SCRIPT -->
     <script>
-        // State
         let currentUser = null;
         let db = null;
         let workInterval = null;
         let breakInterval = null;
 
-        // Default local users fallback
         let users = JSON.parse(localStorage.getItem('tp_users')) || [
             { id: 'admin', username: 'admin', password: 'admin', role: 'admin' },
             { id: 'emp1', username: 'employee1', password: '123', role: 'employee' }
         ];
 
-        // Init
         document.addEventListener('DOMContentLoaded', () => {
             initClocks();
             initFirebase();
@@ -263,16 +272,26 @@
 
         function initFirebase() {
             const config = JSON.parse(localStorage.getItem('tp_fb_config'));
+            const dot = document.getElementById('fb-dot');
+            const text = document.getElementById('fb-text');
+
             if (config && config.apiKey && typeof firebase !== 'undefined') {
                 try {
                     if (!firebase.apps.length) {
                         firebase.initializeApp(config);
                     }
                     db = firebase.firestore();
-                    console.log("Firebase initialized");
+                    dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping";
+                    text.innerText = "Firebase: Connected";
+                    text.className = "text-emerald-400 font-semibold";
                 } catch(e) {
-                    console.error("Firebase error", e);
+                    console.error("Firebase connection failed", e);
+                    dot.className = "w-2.5 h-2.5 rounded-full bg-rose-500";
+                    text.innerText = "Firebase: Config Error";
                 }
+            } else {
+                dot.className = "w-2.5 h-2.5 rounded-full bg-amber-500";
+                text.innerText = "Firebase: Offline Mode";
             }
         }
 
@@ -280,17 +299,14 @@
             const saved = localStorage.getItem('tp_session');
             if (saved) {
                 currentUser = JSON.parse(saved);
-                renderApp();
-            } else {
-                renderApp();
             }
+            renderApp();
         }
 
         function handleLogin(e) {
             e.preventDefault();
             const u = document.getElementById('login-username').value.trim();
             const p = document.getElementById('login-password').value.trim();
-
             const found = users.find(x => x.username.toLowerCase() === u.toLowerCase() && x.password === p);
 
             if (found) {
@@ -349,14 +365,16 @@
 
             const now = Date.now();
             userState.status = status;
+            userState.username = currentUser.username;
+            userState.updatedAt = now;
 
-            if (status === 'Working' && !userState.workStart) {
-                userState.workStart = now;
-                userState.breakEnd = null;
+            if (status === 'Working') {
+                if (!userState.workStart) userState.workStart = now;
+                userState.breakEnd = null; // Clear break countdown when Back to Seat or Start Work
             } else if (status === 'Toilet Break' || status === 'Smoke Break') {
-                userState.breakEnd = now + (15 * 60 * 1000); // 15 mins
+                userState.breakEnd = now + (15 * 60 * 1000);
             } else if (status === 'Eat Break') {
-                userState.breakEnd = now + (60 * 60 * 1000); // 1 hour
+                userState.breakEnd = now + (60 * 60 * 1000);
             } else if (status === 'Off Work') {
                 userState.workStart = null;
                 userState.breakEnd = null;
@@ -365,7 +383,9 @@
             localStorage.setItem(`tp_state_${currentUser.id}`, JSON.stringify(userState));
 
             if (db) {
-                db.collection('attendance').doc(currentUser.id).set(userState);
+                db.collection('attendance').doc(currentUser.id).set(userState, { merge: true })
+                .then(() => console.log("Synced with Firebase"))
+                .catch(err => console.error("Firebase sync error:", err));
             }
 
             renderEmployeeDashboard();
@@ -393,7 +413,7 @@
             }, 1000);
 
             breakInterval = setInterval(() => {
-                if (userState.breakEnd) {
+                if (userState.breakEnd && userState.status !== 'Working') {
                     const diff = Math.max(0, Math.floor((userState.breakEnd - Date.now()) / 1000));
                     const m = String(Math.floor(diff / 60)).padStart(2, '0');
                     const s = String(diff % 60).padStart(2, '0');
@@ -406,20 +426,42 @@
 
         function renderAdminPanel() {
             const grid = document.getElementById('admin-team-grid');
-            grid.innerHTML = '';
+            grid.innerHTML = '<p class="text-xs text-slate-400">Loading live data...</p>';
 
-            users.filter(x => x.role !== 'admin').forEach(emp => {
-                let state = JSON.parse(localStorage.getItem(`tp_state_${emp.id}`)) || { status: 'Off Work' };
-                grid.innerHTML += `
-                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                        <div class="flex justify-between items-start mb-2">
-                            <h4 class="font-bold text-white">${emp.username}</h4>
-                            <span class="text-xs px-2 py-0.5 rounded bg-slate-700 text-indigo-300">${state.status}</span>
+            if (db) {
+                db.collection('attendance').onSnapshot((snapshot) => {
+                    grid.innerHTML = '';
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        grid.innerHTML += `
+                            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                                <div class="flex justify-between items-start mb-2">
+                                    <h4 class="font-bold text-white">${data.username || 'Employee'}</h4>
+                                    <span class="text-xs px-2.5 py-1 rounded-full font-semibold ${
+                                        data.status === 'Working' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                                        data.status === 'Off Work' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                    }">${data.status}</span>
+                                </div>
+                                <p class="text-xs text-slate-400">Last updated: ${data.updatedAt ? new Date(data.updatedAt).toLocaleTimeString() : 'N/A'}</p>
+                            </div>
+                        `;
+                    });
+                });
+            } else {
+                grid.innerHTML = '';
+                users.filter(x => x.role !== 'admin').forEach(emp => {
+                    let state = JSON.parse(localStorage.getItem(`tp_state_${emp.id}`)) || { status: 'Off Work' };
+                    grid.innerHTML += `
+                        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                            <div class="flex justify-between items-start mb-2">
+                                <h4 class="font-bold text-white">${emp.username}</h4>
+                                <span class="text-xs px-2 py-0.5 rounded bg-slate-700 text-indigo-300">${state.status}</span>
+                            </div>
+                            <p class="text-xs text-slate-400">Local Offline State</p>
                         </div>
-                        <p class="text-xs text-slate-400">Tracking active shift and break status locally or via cloud.</p>
-                    </div>
-                `;
-            });
+                    `;
+                });
+            }
 
             const list = document.getElementById('user-accounts-list');
             list.innerHTML = '';
