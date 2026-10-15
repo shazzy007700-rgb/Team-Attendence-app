@@ -170,14 +170,14 @@
             <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
                 <div>
                     <h2 class="text-2xl font-bold text-white">Admin Control Panel</h2>
-                    <p class="text-slate-400 text-sm">Live userwise working time, total break minutes & status monitor</p>
+                    <p class="text-slate-400 text-sm">Real-time employee activity, working vs break durations & credentials</p>
                 </div>
                 <div class="flex gap-2">
                     <button onclick="openUserModal()" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
                         <i class="fa-solid fa-user-plus"></i> Add User
                     </button>
                     <button onclick="loadAdminData()" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
-                        <i class="fa-solid fa-rotate text-indigo-400"></i> Refresh
+                        <i class="fa-solid fa-rotate text-indigo-400"></i> Refresh Live Data
                     </button>
                 </div>
             </div>
@@ -255,7 +255,7 @@
             <!-- Registered Accounts List -->
             <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
                 <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-users-gear text-indigo-400"></i> Registered User Accounts
+                    <i class="fa-solid fa-users-gear text-indigo-400"></i> Registered Accounts Manager (<span id="user-count-badge">0</span> Users)
                 </h3>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-300">
@@ -357,10 +357,10 @@
 
         function handleLogin(e) {
             e.preventDefault();
-            const u = document.getElementById('login-username').value.trim();
-            const p = document.getElementById('login-password').value.trim();
+            const u = String(document.getElementById('login-username').value).trim();
+            const p = String(document.getElementById('login-password').value).trim();
 
-            const found = users.find(x => x.username.toLowerCase() === u.toLowerCase() && String(x.password) === p);
+            const found = users.find(x => String(x.username).toLowerCase() === u.toLowerCase() && String(x.password) === p);
 
             if (found) {
                 currentUser = found;
@@ -629,6 +629,7 @@
             loadAdminData();
 
             const userList = document.getElementById('user-accounts-list');
+            document.getElementById('user-count-badge').innerText = users.length;
             userList.innerHTML = '';
             users.forEach(u => {
                 userList.innerHTML += `
@@ -669,11 +670,10 @@
                     let breakCount = 0;
                     let offCount = 0;
 
-                    // Latest state & total aggregation per user
                     let userSummaryMap = {};
 
                     logs.forEach(log => {
-                        let u = log.username;
+                        let u = String(log.username).trim();
                         if (!userSummaryMap[u]) {
                             userSummaryMap[u] = {
                                 username: u,
@@ -694,7 +694,6 @@
                         }
                     });
 
-                    // Render Userwise Table
                     Object.values(userSummaryMap).forEach(uData => {
                         if (uData.status === 'Working') workingCount++;
                         else if (uData.status.includes('Break')) breakCount++;
@@ -709,7 +708,6 @@
                             statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30"><i class="fa-solid fa-power-off mr-1"></i> Off Work</span>`;
                         }
 
-                        // Local state check for fallback break time precision
                         let localState = JSON.parse(localStorage.getItem(`tp_state_${uData.username}`)) || {};
                         let breakDisplay = formatSecToHHMMSS(uData.totalBreakSec || localState.totalBreakSec || 0);
 
@@ -731,7 +729,6 @@
                     document.getElementById('stat-on-break').innerText = breakCount;
                     document.getElementById('stat-off-work').innerText = offCount;
 
-                    // Render Activity Feed
                     logs.reverse().slice(0, 20).forEach(log => {
                         activityList.innerHTML += `
                             <tr>
@@ -760,11 +757,11 @@
 
         function saveUserAccount(e) {
             e.preventDefault();
-            const u = document.getElementById('modal-username').value.trim();
-            const p = document.getElementById('modal-password').value.trim();
+            const u = String(document.getElementById('modal-username').value).trim();
+            const p = String(document.getElementById('modal-password').value).trim();
             const r = document.getElementById('modal-role').value;
 
-            if (users.some(x => x.username.toLowerCase() === u.toLowerCase())) {
+            if (users.some(x => String(x.username).toLowerCase() === u.toLowerCase())) {
                 alert(`User '${u}' already exists!`);
                 return;
             }
