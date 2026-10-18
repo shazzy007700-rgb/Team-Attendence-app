@@ -318,6 +318,12 @@
         ];
         let users = JSON.parse(localStorage.getItem('tp_users')) || defaultUsers;
 
+        // Force English Numerals Convertor
+        function parseToEnglishDigits(str) {
+            if (!str) return "0";
+            return String(str).replace(/[০-৯]/g, d => "০১২৩৪৫৬৭৮৯".indexOf(d));
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             initClocks();
             fetchUsersFromSheet();
@@ -327,10 +333,10 @@
         function initClocks() {
             setInterval(() => {
                 const now = new Date();
-                document.getElementById('clock-uk').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Europe/London' });
-                document.getElementById('clock-eu').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Europe/Paris' });
-                document.getElementById('clock-bd').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka' });
-                document.getElementById('clock-kh').innerText = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Phnom_Penh' });
+                document.getElementById('clock-uk').innerText = now.toLocaleTimeString('en-US', { timeZone: 'Europe/London', hour12: false });
+                document.getElementById('clock-eu').innerText = now.toLocaleTimeString('en-US', { timeZone: 'Europe/Paris', hour12: false });
+                document.getElementById('clock-bd').innerText = now.toLocaleTimeString('en-US', { timeZone: 'Asia/Dhaka', hour12: false });
+                document.getElementById('clock-kh').innerText = now.toLocaleTimeString('en-US', { timeZone: 'Asia/Phnom_Penh', hour12: false });
             }, 1000);
         }
 
@@ -643,7 +649,7 @@
         }
 
         function formatSecToHHMMSS(seconds) {
-            let sec = parseInt(seconds || 0);
+            let sec = parseInt(parseToEnglishDigits(seconds) || 0);
             let h = String(Math.floor(sec / 3600)).padStart(2, '0');
             let m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
             let s = String(sec % 60).padStart(2, '0');
@@ -674,22 +680,25 @@
 
                     logs.forEach(log => {
                         let u = String(log.username).trim();
+                        let workSec = parseInt(parseToEnglishDigits(log.totalWorkSec) || 0);
+                        let breakSec = parseInt(parseToEnglishDigits(log.totalBreakSec) || 0);
+
                         if (!userSummaryMap[u]) {
                             userSummaryMap[u] = {
                                 username: u,
                                 status: log.status,
-                                totalWorkSec: parseInt(log.totalWorkSec || 0),
-                                totalBreakSec: parseInt(log.totalBreakSec || 0),
+                                totalWorkSec: workSec,
+                                totalBreakSec: breakSec,
                                 timestamp: log.timestamp
                             };
                         } else {
                             userSummaryMap[u].status = log.status;
                             userSummaryMap[u].timestamp = log.timestamp;
-                            if (parseInt(log.totalWorkSec || 0) > userSummaryMap[u].totalWorkSec) {
-                                userSummaryMap[u].totalWorkSec = parseInt(log.totalWorkSec || 0);
+                            if (workSec > userSummaryMap[u].totalWorkSec) {
+                                userSummaryMap[u].totalWorkSec = workSec;
                             }
-                            if (parseInt(log.totalBreakSec || 0) > userSummaryMap[u].totalBreakSec) {
-                                userSummaryMap[u].totalBreakSec = parseInt(log.totalBreakSec || 0);
+                            if (breakSec > userSummaryMap[u].totalBreakSec) {
+                                userSummaryMap[u].totalBreakSec = breakSec;
                             }
                         }
                     });
